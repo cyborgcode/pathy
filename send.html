@@ -5,8 +5,9 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Turn this screen into a transmitter: the file is painted as a stream of colour grids for another device's camera to read.">
-<meta name="theme-color" content="#0a0b0d">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,53 +25,54 @@
 <body>
 <main class="wrap">
   <header>
-  <h1>Send</h1>
-  <p class="sub"><a href="./">← back</a> · Pick a file, press start, and point the other device's camera at this screen.</p>
+    <h1>Send</h1>
+    <p class="sub"><a href="./">Back</a></p>
+    <p class="sub">Pick a file, press start, and point the other device's camera at this screen.</p>
   </header>
 
-  <div class="panel" id="setup">
+  <section class="panel" id="setup">
     <div class="row">
       <input type="file" id="file">
       <button id="start" disabled>Start</button>
     </div>
     <div class="msg" id="msg"></div>
 
-    <details style="margin-top:14px">
+    <details>
       <summary>Settings</summary>
       <div class="grid">
         <div class="field">
-          <label for="profile">Density profile</label>
+          <label for="profile">Density</label>
           <select id="profile"></select>
         </div>
         <div class="field">
-          <label for="fps">Target frames/sec</label>
+          <label for="fps">Frames per second</label>
           <input type="number" id="fps" value="30" min="1" max="120">
         </div>
         <div class="field">
-          <label for="window">Window size (MB)</label>
+          <label for="window">Window size, MB</label>
           <input type="number" id="window" value="2" min="1" max="64">
         </div>
       </div>
-      <p class="sub" style="margin:12px 0 0">Denser profiles need a steadier hold and a closer camera. If the receiver stalls, step down a profile before anything else.</p>
+      <p class="sub">Denser profiles need a steadier hold and a closer camera. If the receiver stalls, step down one before changing anything else.</p>
     </details>
-  </div>
+  </section>
 
-  <div class="panel" id="live" hidden>
+  <section class="panel" id="live" hidden>
     <div class="stats">
-      <div class="stat"><div class="k">Sending</div><div class="v" id="s-name">—</div></div>
-      <div class="stat"><div class="k">Rate</div><div class="v" id="s-rate">—</div></div>
-      <div class="stat"><div class="k">Frame</div><div class="v" id="s-fps">—</div></div>
-      <div class="stat"><div class="k">Window</div><div class="v" id="s-window">—</div></div>
-      <div class="stat"><div class="k">Pass</div><div class="v" id="s-pass">—</div></div>
+      <div class="stat stat--wide"><div class="k">Sending</div><div class="v" id="s-name">&mdash;</div></div>
+      <div class="stat"><div class="k">Rate</div><div class="v" id="s-rate">&mdash;</div></div>
+      <div class="stat"><div class="k">Frames</div><div class="v" id="s-fps">&mdash;</div></div>
+      <div class="stat"><div class="k">Window</div><div class="v" id="s-window">&mdash;</div></div>
+      <div class="stat"><div class="k">Pass</div><div class="v" id="s-pass">&mdash;</div></div>
     </div>
-    <div class="row" style="margin-top:14px">
+    <div class="row">
       <button id="stop" class="secondary">Stop</button>
       <button id="full" class="secondary">Fullscreen</button>
     </div>
-    <p class="sub" style="margin:10px 0 0">Keep this screen at full brightness. The stream loops until you stop it.</p>
-  </div>
+    <p class="sub">Keep this screen at full brightness. The stream loops until you stop it.</p>
+  </section>
 
-  <div id="stage"><canvas id="code"></canvas></div>
+  <div id="stage" hidden><canvas id="code"></canvas></div>
 </main>
 <script type="module" src="/src/sender/main.ts"></script>
 </body>

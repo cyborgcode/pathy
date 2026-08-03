@@ -34,7 +34,10 @@ const canvas = $<HTMLCanvasElement>('code');
 for (const p of PROFILES) {
   const opt = document.createElement('option');
   opt.value = String(p.id);
-  opt.textContent = `${p.label} — ${geometryFor(p).payloadBytes} B/frame`;
+  const kb = (geometryFor(p).payloadBytes / 1024).toFixed(1);
+  // "(default)" is redundant on the preselected option and pushed the text
+  // past the width of a phone's select.
+  opt.textContent = `${p.label.replace(' (default)', '')} · ${kb} kB`;
   if (p.id === DEFAULT_PROFILE_ID) opt.selected = true;
   profileSel.appendChild(opt);
 }
@@ -127,6 +130,9 @@ async function start(): Promise<void> {
 
   setup.hidden = true;
   live.hidden = false;
+  // An empty canvas is just a blank slab; it only earns its space once there
+  // is a frame in it.
+  stage.hidden = false;
   $('s-name').textContent = `${file.name} · ${fmtBytes(file.size)}`;
 
   running = true;
@@ -143,6 +149,7 @@ function stop(): void {
   session = null;
   setup.hidden = false;
   live.hidden = true;
+  stage.hidden = true;
   startBtn.disabled = false;
   stage.classList.remove('fullscreen');
   void document.exitFullscreen?.().catch(() => {});

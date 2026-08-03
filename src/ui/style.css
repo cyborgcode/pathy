@@ -1,89 +1,144 @@
-:root {
-  color-scheme: dark;
-  --bg: #0a0b0d;
-  --panel: #14161a;
-  --line: #262a31;
-  --text: #e7e9ee;
-  --dim: #9aa1ad;
-  --accent: #5ee0a0;
-  --warn: #ffb454;
-  --bad: #ff6b6b;
-  --radius: 10px;
+/**
+ * Warm monochrome, editorial, ultra-flat.
+ *
+ * Colour is treated as a scarce resource here for a reason beyond taste: the
+ * only thing on screen that should be shouting in colour is the code itself.
+ * A chrome-heavy interface competes with the one element the other device's
+ * camera is trying to read.
+ *
+ * Type carries the hierarchy instead — a serif display face against a
+ * geometric sans, with monospace for anything numeric. All three are system
+ * stacks. The design language asks for SF Pro Display and SF Mono by name,
+ * and those are already on the device, so the editorial contrast costs no
+ * download. That matters: this is an offline-first app, and a blocking
+ * webfont would be paid for on every cold install.
+ */
 
-  /* Smallest comfortable touch target. Anything a thumb has to hit on a
-     moving phone gets at least this. */
+:root {
+  color-scheme: light dark;
+
+  /* Warm monochrome canvas. */
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --line: rgba(24, 24, 20, 0.09);
+  --line-strong: rgba(24, 24, 20, 0.16);
+  --ink: #1a1a18;
+  --ink-2: #6f6e6a;
+  --ink-3: #96948d;
+
+  /* Spot pastels, used only where something has a state to report. */
+  --good-bg: #edf3ec;
+  --good-ink: #346538;
+  --bad-bg: #fdebec;
+  --bad-ink: #9f2f2d;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
   --tap: 44px;
 
-  /* Safe-area insets, resolved once so every rule can use them without
-     repeating the fallback. The pages ship viewport-fit=cover to reach
-     edge-to-edge, which means content lands under the notch and the home
-     indicator unless it is padded back out. */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
 
   --z-stage: 50;
+
+  --sans: -apple-system, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+/* The transfer itself is often done in a dim room, so the light canvas
+   inverts rather than glaring. Same design, same hierarchy, different ink. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121211;
+    --surface: #191917;
+    --line: rgba(255, 255, 255, 0.10);
+    --line-strong: rgba(255, 255, 255, 0.18);
+    --ink: #ecebe6;
+    --ink-2: #9c998f;
+    --ink-3: #74716a;
+    --good-bg: rgba(52, 101, 56, 0.18);
+    --good-ink: #8fc294;
+    --bad-bg: rgba(159, 47, 45, 0.18);
+    --bad-ink: #e8908d;
+  }
 }
 
 * { box-sizing: border-box; }
 
+/* The UA rule for [hidden] is display:none, which any class setting a display
+   value outranks. Several elements here are toggled by the hidden attribute
+   while also carrying .row or #stage's grid, so it needs to win outright. */
+[hidden] { display: none !important; }
+
 html {
-  /* Stop iOS rubber-banding the whole page. A pull-to-refresh mid-transfer
-     reloads the tab and loses everything decoded so far. */
+  /* A pull-to-refresh mid-transfer reloads the tab and discards everything
+     decoded so far. */
   overscroll-behavior-y: none;
 }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* Stop Safari inflating text when the device rotates to landscape. */
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Grey flash on every tap otherwise; the :active styles below replace it. */
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   min-height: 100svh;
 }
 
-a { color: var(--accent); }
+a { color: var(--ink); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
 
+/* Narrow measure. Long lines are the fastest way to make a simple page feel
+   like a dense one. */
 .wrap {
-  max-width: 900px;
+  max-width: 680px;
   margin: 0 auto;
-  /* Optical, not symmetrical: the bottom needs more room for the home
-     indicator and for thumbs reaching the last control. */
   padding:
-    calc(24px + var(--safe-t))
-    calc(18px + var(--safe-r))
-    calc(64px + var(--safe-b))
-    calc(18px + var(--safe-l));
+    calc(56px + var(--safe-t))
+    calc(24px + var(--safe-r))
+    calc(96px + var(--safe-b))
+    calc(24px + var(--safe-l));
 }
 
+header { margin-bottom: 48px; }
+
 h1 {
-  font-size: 22px;
+  font-family: var(--serif);
+  font-size: clamp(32px, 8vw, 44px);
+  font-weight: 400;
   letter-spacing: -0.02em;
-  margin: 0 0 4px;
+  line-height: 1.05;
+  margin: 0 0 12px;
   text-wrap: balance;
 }
 
 .sub {
-  color: var(--dim);
-  font-size: 14px;
-  margin: 0 0 24px;
+  color: var(--ink-2);
+  font-size: 15px;
+  margin: 0;
   text-wrap: pretty;
-  max-width: 62ch;
+  max-width: 58ch;
 }
+.sub + .sub { margin-top: 10px; }
 
+/* Sections are separated by a hairline and whitespace, not by boxes. Stripping
+   the container is most of what makes this read as simple. */
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
+  border-top: 1px solid var(--line);
+  padding: 32px 0 0;
+  margin: 0 0 32px;
 }
+.panel:first-of-type { border-top: 0; padding-top: 0; }
 
 .row {
   display: flex;
@@ -92,218 +147,303 @@ h1 {
   flex-wrap: wrap;
 }
 
-label { color: var(--dim); font-size: 13px; }
+label {
+  color: var(--ink-2);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-/* Checkbox labels are a tap target in their own right. */
 label:has(input[type="checkbox"]) {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: var(--tap);
   cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 15px;
+  color: var(--ink);
 }
 input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
   flex: none;
 }
 
 button {
-  background: var(--accent);
-  color: #05130c;
-  border: 0;
-  border-radius: 8px;
-  padding: 11px 18px;
+  background: var(--ink);
+  color: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 11px 20px;
   min-height: var(--tap);
-  font: inherit;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
-  /* Buttons sit next to the video and canvas; a stray text selection from a
-     long-press is never wanted here. */
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-  transition: background-color 180ms ease, transform 120ms ease, opacity 180ms ease;
+  transition: opacity 200ms ease, transform 140ms ease, background-color 200ms ease;
 }
-button.secondary { background: #262a31; color: var(--text); }
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
 
 @media (hover: hover) {
-  button:hover { background: #7ae9b4; }
-  button.secondary:hover { background: #333944; }
-  button:disabled:hover { background: var(--accent); }
-  button.secondary:disabled:hover { background: #262a31; }
+  button:hover:not(:disabled) { opacity: 0.82; }
+  button.secondary:hover:not(:disabled) { opacity: 1; border-color: var(--ink); }
 }
-/* Physical press feedback. On a phone this is the only affordance there is,
-   since there is no hover to preview with. */
-button:active:not(:disabled) { transform: scale(0.97); }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:active:not(:disabled) { transform: scale(0.98); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 select,
 input[type="number"],
 input[type="file"],
 textarea {
-  background: #0e1013;
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
   min-height: var(--tap);
   font-family: inherit;
-  /* 16px exactly, not inherited. Safari on iOS zooms the whole page in when
-     a focused field is under 16px, and never zooms back out. */
+  /* 16px exactly. Safari zooms the viewport in on a focused field under 16px
+     and never zooms back out. */
   font-size: 16px;
   width: 100%;
   max-width: 100%;
 }
-input[type="file"] { padding: 10px 12px; }
 textarea { min-height: 80px; resize: vertical; }
 
-/* One focus style for everything, keyboard-only so it never shows on tap. */
 :where(button, select, input, textarea, a, summary):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
+/* Settings sit behind a bare disclosure with a drawn +/- rather than a
+   default triangle. */
+details { border-top: 1px solid var(--line); margin-top: 28px; }
 details summary {
   cursor: pointer;
-  color: var(--dim);
-  font-size: 14px;
+  color: var(--ink-2);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
   min-height: var(--tap);
   display: flex;
   align-items: center;
+  gap: 10px;
+  list-style: none;
   touch-action: manipulation;
 }
-details[open] summary { margin-bottom: 12px; }
+details summary::-webkit-details-marker { display: none; }
+details summary::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: none;
+  background:
+    linear-gradient(var(--ink-2), var(--ink-2)) center/9px 1px no-repeat,
+    linear-gradient(var(--ink-2), var(--ink-2)) center/1px 9px no-repeat;
+  transition: transform 200ms ease;
+}
+details[open] summary::before {
+  /* The vertical stroke rotates out, leaving a minus. */
+  background: linear-gradient(var(--ink-2), var(--ink-2)) center/9px 1px no-repeat;
+}
+details[open] summary { margin-bottom: 20px; }
 
 .grid {
   display: grid;
-  /* Single column on narrow screens; the auto-fit minimum alone still
-     produced cramped two-ups at 360px. */
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 20px;
 }
 @media (min-width: 480px) {
-  .grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 }
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
 
+/* Numbers are the content on these pages, so they get the monospace face and
+   room to breathe. */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 12px 16px;
-  /* Digits must not reflow as the numbers tick. */
-  font-variant-numeric: tabular-nums;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 22px 16px;
 }
-.stat .k { color: var(--dim); font-size: 12px; }
+.stat .k {
+  color: var(--ink-3);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+/* Filenames get the full row. In a narrow column the monospace face breaks
+   them mid-word and drags every other stat out of line. */
+.stat--wide { grid-column: 1 / -1; }
+.stat--wide .v { font-size: 15px; }
+
 .stat .v {
-  font-size: 17px;
-  font-weight: 600;
-  /* Filenames and hashes must not push the layout sideways. */
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
   overflow-wrap: anywhere;
 }
 
+/* Controls need air after a block of figures, and prose needs air after
+   controls. */
+.stats + .row { margin-top: 28px; }
+.row + .sub { margin-top: 16px; }
+
 .bar {
-  height: 8px;
-  background: #23262c;
-  border-radius: 99px;
+  height: 2px;
+  background: var(--line);
   overflow: hidden;
-  margin: 10px 0 4px;
+  margin: 28px 0 0;
 }
 .bar > i {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--accent);
-  transition: width 0.15s linear;
+  background: var(--ink);
+  transition: width 0.2s linear;
 }
 
 #stage {
   display: grid;
   place-items: center;
-  background: #000;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+  margin-top: 28px;
 }
 #stage.fullscreen {
   position: fixed;
   inset: 0;
+  border: 0;
   border-radius: 0;
   z-index: var(--z-stage);
-  /* Deliberately ignores safe-area insets: the receiver needs every pixel of
-     screen it can get, and the code's own quiet zone keeps the markers clear
-     of the rounded corners. */
+  /* Deliberately ignores the safe-area insets: the receiver needs every pixel
+     it can get, and the code carries its own quiet zone. */
   background: #fff;
+  margin: 0;
 }
 
 canvas#code {
   display: block;
   image-rendering: pixelated;
   max-width: 100%;
-  /* Dynamic viewport units: with 100vh, iOS Safari sizes against the tallest
-     possible viewport, so the bottom of the code sits under the toolbar until
-     the user scrolls. dvh tracks the toolbar as it collapses. */
+  /* dvh, not vh: Safari resolves vh against the tallest possible viewport, so
+     the bottom of the code would sit under the toolbars until you scroll. */
   max-height: 100dvh;
 }
 
 video {
   width: 100%;
-  max-height: 60dvh;
+  max-height: 56dvh;
   background: #000;
   border-radius: var(--radius);
   object-fit: contain;
   display: block;
+  margin-top: 24px;
 }
 
 .msg {
+  font-family: var(--mono);
   font-size: 13px;
-  color: var(--dim);
-  margin-top: 10px;
-  min-height: 1.4em;
+  color: var(--ink-2);
+  margin-top: 16px;
+  min-height: 1.5em;
   overflow-wrap: anywhere;
 }
-.msg.bad { color: var(--bad); }
-.msg.good { color: var(--accent); }
-
-code, .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+/* State is the one place colour is spent, and only as a washed pastel. */
+.msg.bad,
+.msg.good {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 14px;
 }
+.msg.good { background: var(--good-bg); color: var(--good-ink); }
+.msg.bad { background: var(--bad-bg); color: var(--bad-ink); }
 
+code, .mono { font-family: var(--mono); font-size: 13px; }
+
+/* The landing page's two routes: hairline rows, not boxes. */
 .cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-@media (min-width: 560px) {
-  .cards { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
 }
 .card {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
   text-decoration: none;
   color: inherit;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px;
+  border-bottom: 1px solid var(--line);
+  padding: 26px 4px;
   min-height: var(--tap);
   touch-action: manipulation;
-  transition: border-color 180ms ease, transform 120ms ease;
+  transition: padding-left 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms ease;
 }
 @media (hover: hover) {
-  .card:hover { border-color: var(--accent); }
+  .card:hover { padding-left: 12px; background: var(--surface); }
 }
-.card:active { transform: scale(0.99); }
-.card b { display: block; margin-bottom: 4px; }
-.card span { color: var(--dim); font-size: 13px; }
+.card:active { background: var(--surface); }
+.card b {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  flex: none;
+  min-width: 108px;
+}
+.card span { color: var(--ink-2); font-size: 14px; }
 
-/* Landscape phones have almost no vertical room; give the controls back the
-   space the header was using. */
+@media (max-width: 460px) {
+  .card { flex-direction: column; gap: 4px; }
+  .card b { min-width: 0; }
+}
+
+/* On a phone a stranded auto-width button next to a full-width field reads as
+   an afterthought. Let them share the row instead. */
+@media (max-width: 560px) {
+  .row > button { flex: 1 1 auto; }
+}
+
+/* Landscape phones have almost no vertical room. */
 @media (max-height: 480px) and (orientation: landscape) {
-  .wrap { padding-top: calc(12px + var(--safe-t)); padding-bottom: calc(24px + var(--safe-b)); }
-  .sub { margin-bottom: 14px; }
-  video { max-height: 52dvh; }
+  .wrap { padding-top: calc(20px + var(--safe-t)); padding-bottom: calc(32px + var(--safe-b)); }
+  header { margin-bottom: 24px; }
+  video { max-height: 48dvh; }
+}
+
+/* Quiet entrance. Present, not a performance — and only on first paint, since
+   these pages do not scroll far enough to justify observers. */
+@media (prefers-reduced-motion: no-preference) {
+  .wrap > * {
+    animation: rise 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .wrap > *:nth-child(2) { animation-delay: 60ms; }
+  .wrap > *:nth-child(3) { animation-delay: 120ms; }
+  .wrap > *:nth-child(4) { animation-delay: 180ms; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

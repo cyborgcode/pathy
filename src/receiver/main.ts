@@ -151,6 +151,9 @@ async function start(): Promise<void> {
   }
 
   video.srcObject = stream;
+  // Revealed only once there is a picture; an empty video element is a blank
+  // rectangle taking up half the screen.
+  video.hidden = false;
   await video.play();
 
   const count = Math.max(1, Math.min(16, Number(workersInput.value) || 4));
@@ -198,6 +201,7 @@ async function stop(): Promise<void> {
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   video.srcObject = null;
+  video.hidden = true;
 
   if (session) await session.close();
 }
@@ -300,6 +304,7 @@ async function finish(): Promise<void> {
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   video.srcObject = null;
+  video.hidden = true;
   stopBtn.disabled = true;
   startBtn.disabled = false;
 

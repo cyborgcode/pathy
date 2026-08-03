@@ -157,11 +157,30 @@ must be relative or they escape it. `npm run smoke` serves the build under a
 subdirectory and loads every page in Chromium to check exactly that — a wrong
 base path still produces a perfectly valid bundle.
 
+## Interface
+
+Warm monochrome, hairline rules instead of boxes, and type doing the work a
+border would otherwise do. Colour is spent only where something has a state to
+report, for a reason beyond taste: the one element that should be shouting in
+colour is the code itself, and interface chrome competes with the thing the
+other device's camera is trying to read.
+
+The display face is a serif, the body a geometric sans, and every figure is
+monospaced with tabular numerals so the readouts do not reflow as they tick.
+All three are system stacks — no webfont, because a blocking download is the
+last thing an offline-first app should ask for on a cold install.
+
+Both themes ship. A transfer often happens in a dim room, so the light canvas
+inverts through `prefers-color-scheme` rather than glaring.
+
+Built following [taste-skill](https://github.com/Leonxlnx/taste-skill)'s
+`minimalist-ui`, with the mobile pass before it following the same repo's
+`redesign-existing-projects`.
+
 ## Mobile
 
 Both devices in a transfer are usually phones, so the phone case is the main
-case rather than an afterthought. The layout pass followed the audit in
-[taste-skill](https://github.com/Leonxlnx/taste-skill)'s `redesign-existing-projects`.
+case rather than an afterthought.
 
 What actually bites on a phone, and what was done about it:
 

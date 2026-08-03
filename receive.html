@@ -5,8 +5,9 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Point this camera at a sending screen to rebuild the file from light alone.">
-<meta name="theme-color" content="#0a0b0d">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,27 +25,30 @@
 <body>
 <main class="wrap">
   <header>
-  <h1>Receive</h1>
-  <p class="sub"><a href="./">← back</a> · Point the camera at the sending screen. Fill the view with it and hold steady.</p>
+    <h1>Receive</h1>
+    <p class="sub"><a href="./">Back</a></p>
+    <p class="sub">Point the camera at the sending screen. Fill the view with it and hold steady.</p>
   </header>
 
-  <div class="panel">
+  <section class="panel">
     <div class="row">
       <button id="start">Start camera</button>
       <button id="stop" class="secondary" disabled>Stop</button>
-      <label><input type="checkbox" id="todisk"> Stream straight to disk (large files)</label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="todisk"> Stream straight to disk, for large files</label>
     </div>
     <div class="msg" id="msg"></div>
 
-    <details style="margin-top:14px">
+    <details>
       <summary>Settings</summary>
       <div class="grid">
         <div class="field">
           <label for="res">Capture resolution</label>
           <select id="res">
-            <option value="1920">1920 (best density)</option>
+            <option value="1920">1920 &mdash; best density</option>
             <option value="1600" selected>1600</option>
-            <option value="1280">1280 (fastest)</option>
+            <option value="1280">1280 &mdash; fastest</option>
           </select>
         </div>
         <div class="field">
@@ -53,22 +57,22 @@
         </div>
       </div>
     </details>
-  </div>
+  </section>
 
-  <video id="video" playsinline muted></video>
+  <video id="video" playsinline muted hidden></video>
 
-  <div class="panel" style="margin-top:16px">
+  <section class="panel">
     <div class="stats">
-      <div class="stat"><div class="k">File</div><div class="v" id="r-name">—</div></div>
-      <div class="stat"><div class="k">Received</div><div class="v" id="r-done">—</div></div>
-      <div class="stat"><div class="k">Rate</div><div class="v" id="r-rate">—</div></div>
-      <div class="stat"><div class="k">Frames/sec</div><div class="v" id="r-fps">—</div></div>
-      <div class="stat"><div class="k">Decode hit</div><div class="v" id="r-hit">—</div></div>
+      <div class="stat stat--wide"><div class="k">File</div><div class="v" id="r-name">&mdash;</div></div>
+      <div class="stat"><div class="k">Received</div><div class="v" id="r-done">&mdash;</div></div>
+      <div class="stat"><div class="k">Rate</div><div class="v" id="r-rate">&mdash;</div></div>
+      <div class="stat"><div class="k">Frames</div><div class="v" id="r-fps">&mdash;</div></div>
+      <div class="stat"><div class="k">Decoded</div><div class="v" id="r-hit">&mdash;</div></div>
     </div>
     <div class="bar"><i id="r-bar"></i></div>
     <div class="msg" id="r-msg"></div>
     <div class="row" id="r-actions" hidden><button id="save">Save file</button></div>
-  </div>
+  </section>
 </main>
 <script type="module" src="/src/receiver/main.ts"></script>
 </body>

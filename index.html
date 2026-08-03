@@ -5,8 +5,9 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.">
-<meta name="theme-color" content="#0a0b0d">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,21 +25,26 @@
 <body>
 <main class="wrap">
   <header>
-  <h1>Photon</h1>
-  <p class="sub">Move a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.</p>
+    <h1>Photon</h1>
+    <p class="sub">A file moves between two devices as light. One screen paints it, the other reads it with a camera. No network, no pairing, nothing to install.</p>
   </header>
 
-  <div class="cards">
-    <a class="card" href="send.html"><b>Send →</b><span>Pick a file. This screen becomes the transmitter.</span></a>
-    <a class="card" href="receive.html"><b>Receive →</b><span>Point this camera at the other screen.</span></a>
-  </div>
+  <nav class="cards">
+    <a class="card" href="send.html">
+      <b>Send</b>
+      <span>Pick a file. This screen becomes the transmitter.</span>
+    </a>
+    <a class="card" href="receive.html">
+      <b>Receive</b>
+      <span>Point this camera at the other screen.</span>
+    </a>
+  </nav>
 
-  <div class="panel" style="margin-top:20px">
-    <p class="sub" style="margin:0 0 10px"><b style="color:var(--text)">How it works</b></p>
-    <p class="sub" style="margin:0 0 8px">The sender paints the file as an endless run of colour grids. Each cell is one of eight saturated colours, so it carries three bits rather than the one a black-and-white QR module manages.</p>
-    <p class="sub" style="margin:0 0 8px">Every frame is an independent fountain-coded combination of the file's blocks. The receiver needs <em>enough</em> frames, not <em>specific</em> ones, so there is no handshake and nothing to retransmit — which is just as well, because a camera pointed at a screen has no way to ask.</p>
-    <p class="sub" style="margin:0">The file is cut into windows that are decoded and written out one at a time, so memory does not grow with file size. The sender loops forever; a window you missed comes back round.</p>
-  </div>
+  <section class="panel">
+    <p class="sub">Each cell of the grid is one of eight colours, so it carries three bits where a black-and-white code carries one.</p>
+    <p class="sub">Every frame is an independent combination of the file's blocks, so the receiver needs <em>enough</em> frames rather than <em>particular</em> ones. There is nothing to retransmit and nothing to ask for — a camera pointed at a screen has no way to reply.</p>
+    <p class="sub">The file is cut into windows, written out one at a time, so memory does not grow with file size. The sender loops; a window you missed comes back round.</p>
+  </section>
 </main>
 <script type="module" src="/src/ui/index-page.ts"></script>
 </body>
