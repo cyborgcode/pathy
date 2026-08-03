@@ -11,7 +11,7 @@
     "preview": "vite preview --host",
     "test": "vitest run",
     "bench": "tsx bench/run.ts",
-    "e2e": "tsx tests/e2e/browser-loop.ts"
+    "e2e": "vite build && tsx tests/e2e/browser-loop.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

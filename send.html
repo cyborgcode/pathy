@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photon — send</title>
+<link rel="stylesheet" href="/src/ui/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Send</h1>
+  <p class="sub"><a href="/">← back</a> · Pick a file, press start, and point the other device's camera at this screen.</p>
+
+  <div class="panel" id="setup">
+    <div class="row">
+      <input type="file" id="file">
+      <button id="start" disabled>Start</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <details style="margin-top:14px">
+      <summary>Settings</summary>
+      <div class="grid">
+        <div class="field">
+          <label for="profile">Density profile</label>
+          <select id="profile"></select>
+        </div>
+        <div class="field">
+          <label for="fps">Target frames/sec</label>
+          <input type="number" id="fps" value="30" min="1" max="120">
+        </div>
+        <div class="field">
+          <label for="window">Window size (MB)</label>
+          <input type="number" id="window" value="2" min="1" max="64">
+        </div>
+      </div>
+      <p class="sub" style="margin:12px 0 0">Denser profiles need a steadier hold and a closer camera. If the receiver stalls, step down a profile before anything else.</p>
+    </details>
+  </div>
+
+  <div class="panel" id="live" hidden>
+    <div class="stats">
+      <div class="stat"><div class="k">Sending</div><div class="v" id="s-name">—</div></div>
+      <div class="stat"><div class="k">Rate</div><div class="v" id="s-rate">—</div></div>
+      <div class="stat"><div class="k">Frame</div><div class="v" id="s-fps">—</div></div>
+      <div class="stat"><div class="k">Window</div><div class="v" id="s-window">—</div></div>
+      <div class="stat"><div class="k">Pass</div><div class="v" id="s-pass">—</div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="stop" class="secondary">Stop</button>
+      <button id="full" class="secondary">Fullscreen</button>
+    </div>
+    <p class="sub" style="margin:10px 0 0">Keep this screen at full brightness. The stream loops until you stop it.</p>
+  </div>
+
+  <div id="stage"><canvas id="code"></canvas></div>
+</div>
+<script type="module" src="/src/sender/main.ts"></script>
+</body>
+</html>

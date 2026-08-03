@@ -12,6 +12,9 @@ export default defineConfig({
         index: resolve(__dirname, 'index.html'),
         send: resolve(__dirname, 'send.html'),
         receive: resolve(__dirname, 'receive.html'),
+        // The headless loop test is built alongside the app so it runs against
+        // the same module graph the real pages use.
+        e2e: resolve(__dirname, 'tests/e2e/loop.html'),
       },
     },
   },

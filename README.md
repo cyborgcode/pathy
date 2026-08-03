@@ -1,0 +1,198 @@
+# Photon — file transfer over light
+
+Send a file between two devices using nothing but a screen and a camera. One
+page paints the file as an endless run of colour grids; the other points its
+camera at them and rebuilds the file. No network path between the devices, no
+pairing, no app, no permission beyond the camera.
+
+This is a rebuild of the idea behind
+[decimen-optical-transfer](https://github.com/bashalarmistalt/decimen-optical-transfer),
+aimed at the two things that limited it: **speed** and **file size**.
+
+|                        | Original (QR)              | Photon                                    |
+| ---------------------- | -------------------------- | ----------------------------------------- |
+| Bits per cell          | 1 (black/white)            | **3** (eight colours, one bit per channel) |
+| Payload per frame      | 2 953 B (QR v40-L)         | **7 805 B** default, up to 20 559 B       |
+| Decode cost per frame  | tens of ms (zxing-cpp WASM)| **12–30 ms**, 4 workers → 130–320 fps ceiling |
+| Receiver bundle        | ~2.1 MB WASM               | **~50 kB**, no WASM                       |
+| Practical file size    | 2 MB ("go make coffee" past that) | **bounded RAM at any size** — GB-scale |
+| Measured goodput       | ~129 KB/s typical          | **457 KB/s** handheld @60 fps             |
+
+## Measured throughput
+
+Numbers below come from `npm run bench`, which pushes rendered frames through a
+simulated screen-to-camera channel — perspective, optical blur, 4:2:0 chroma
+subsampling, gamma, white-balance error, glare, sensor noise — and counts only
+frames that came back **bit-exact**.
+
+Goodput at 60 fps display, receiver running 4 decode workers:
+
+| Conditions | Profile         | Frames OK | Goodput      |
+| ---------- | --------------- | --------- | ------------ |
+| tripod     | 224 · dense     | 100%      | **889 KB/s** |
+| tripod     | 160 · default   | 100%      | 457 KB/s     |
+| handheld   | 160 · default   | 100%      | **457 KB/s** |
+| handheld   | 128             | 100%      | 287 KB/s     |
+| rough      | 96 · robust     | 100%      | 146 KB/s     |
+
+Against the original's reported ~129 KB/s typical and ~186 KB/s propped still,
+that is roughly **3.5× handheld** and **4.8× at the ceiling** — and the worst
+case here still beats the original's typical case.
+
+**These are simulated-channel numbers, not real-device numbers.** The channel
+model is in `bench/channel.ts` and is deliberately explicit about what it
+assumes; real phones vary, and the honest way to read the table is as a
+comparison between profiles under identical conditions rather than as a
+promise about your hardware. What is *not* simulated is the browser plumbing —
+that is covered separately by a headless end-to-end test that moves a real
+file through a real `MediaStream` and verifies SHA-256.
+
+## Where the speed comes from
+
+**Three bits per cell instead of one.** Each cell is one of eight saturated
+colours, with R, G and B each carrying an independent bit — so a misread
+channel costs exactly one bit, and per-channel thresholding is both the
+fastest and the most robust way to decode. QR also spends about a quarter of
+its modules on ECC that was designed for print, plus version blocks, alignment
+patterns and mask bookkeeping. Here the only fixed costs are four corner
+markers, a control strip and a colour calibration strip.
+
+**A decoder that keeps up.** This is the part that quietly caps the original:
+its receiver drops frames whenever its WASM workers fall behind, which at
+60 fps is most of them. Finding four markers and resampling a grid costs
+12–30 ms, so with a handful of workers the *display* becomes the bottleneck
+rather than the camera. Denser frames actually translate into throughput.
+
+**Error correction sized for this channel.** Reed–Solomon over GF(256),
+interleaved across the frame so a glare blob becomes a byte or two in each of
+many shards instead of a burst that destroys one. Frames that are 96% correct
+get repaired rather than thrown away — and with the fountain layer above it,
+frame loss becomes the only thing left to absorb.
+
+Three decoder details turned out to matter as much as the encoding, all found
+by the benchmark rather than guessed at:
+
+- **Local thresholds.** Each cell is compared against an average of the data
+  cells around it, not one number for the whole frame. Glare and vignetting
+  vary slowly, so a local average tracks them for free.
+- **Whitening.** Local thresholds need a balanced cell distribution. A
+  degree-1 fountain frame carrying a run of zeros does not provide one, so the
+  coded stream is XOR-ed against a fixed pseudorandom sequence first.
+- **Sharpening in cell space, harder on chroma than luma.** At five pixels per
+  cell, optical bleed alone flips channels. Cameras degrade chroma far more
+  than luma (4:2:0 plus chroma denoise), so the two get different gains.
+
+## Where the volume comes from
+
+The original holds the whole file as one block set, so decoder memory scales
+with file size and a 2 MB payload is about the practical limit.
+
+Here the file is cut into **windows** of a couple of MB, each with its own
+fountain, block count and seed. The decoder only ever holds a few windows at
+once and writes each one to disk the moment it completes, so **peak memory is
+a function of window size, not file size**. The sender reads with
+`File.slice()` and hashes incrementally, so it never holds the file either.
+
+The sender loops over windows forever. That is what makes it self-healing:
+a receiver that joins late, loses focus mid-window, or gets overtaken while
+the sender moves on simply completes that window on the next pass. Nothing is
+ever retransmitted on request, because on a one-way optical link nothing can
+be.
+
+## Running it
+
+```bash
+npm install
+npm run dev          # then open the printed https URL on both devices
+```
+
+`getUserMedia` is stripped on insecure origins, so the dev server needs HTTPS
+and the receiving device has to accept the self-signed certificate — which is
+admittedly ironic for a transfer that never touches the network.
+
+```bash
+npm test             # unit + end-to-end transfer tests
+npm run bench        # throughput across profiles and conditions
+npm run e2e          # headless Chromium: real MediaStream, real workers
+npm run build        # typecheck + production bundle
+```
+
+## How a frame is put together
+
+```
+┌───────────────────────────────────────────┐
+│ ▣                  control              ▣ │   corner markers: 1:1:3:1:1,
+│                                           │   four of them, so perspective
+│        160 × 160 data cells               │   is solved exactly rather than
+│        8 colours = 3 bits each            │   approximated
+│                                           │
+│ ▣               calibration             ▣ │   control strip: profile id
+└───────────────────────────────────────────┘   calibration: all 8 colours
+```
+
+Every frame is self-describing — session id, sequence number, window index,
+block count, block size, CRC — so a receiver can lock onto a stream already in
+flight from the first frame it happens to catch. Restarting the sender mints a
+new session id, which the receiver notices and resets itself on. That is the
+whole of the "protocol"; there is no handshake because there is no back
+channel to handshake over.
+
+The sender emits a manifest frame every 32 frames carrying the filename, MIME
+type, total size and SHA-256, so a late joiner does not have to wait long to
+learn what is arriving.
+
+### Profiles
+
+The receiver reads the profile out of the control strip, so the sender can
+change density mid-stream and the receiver follows without being told.
+
+| id | grid | bits/cell | payload/frame | for                        |
+| -- | ---- | --------- | ------------- | -------------------------- |
+| 0  | 96   | 3         | 2 484 B       | worst conditions           |
+| 2  | 160  | 3         | 7 805 B       | **default**                |
+| 3  | 192  | 3         | 11 150 B      | steady hold, close camera  |
+| 5  | 256  | 3         | 20 559 B      | tripod only                |
+| 7  | 160  | 1         | 2 453 B       | mono fallback              |
+
+If the receiver stalls, step *down* a profile before changing anything else.
+
+## Layout
+
+```
+src/core/      physical + coding layers, no DOM — all of it runs under Node
+  rng.ts       xoshiro128** + detLn (see below)
+  soliton.ts   robust soliton degree distribution, integer CDF
+  rs.ts        Reed-Solomon GF(256), interleaved across the frame
+  fountain.ts  windowed LT encode/decode with incremental peeling
+  profile.ts   frame geometry and density profiles
+  render.ts    rasteriser (packed 32-bit writes)
+  detect.ts    marker search, adaptive binarisation
+  decode.ts    resample, sharpen, threshold, correct
+  session.ts   window scheduling, manifests, sinks
+src/sender/    sender page
+src/receiver/  receiver page + decode worker
+bench/         channel simulation and throughput benchmark
+tests/         unit, transfer, and headless browser tests
+```
+
+### One inherited bug worth keeping fixed
+
+`Math.log` is not specified to bit precision, and V8 and JavaScriptCore
+disagree in the low mantissa bits. That is enough to move a degree-distribution
+bucket boundary, which desynchronises sender and receiver — a file that
+accumulates frames forever and never decodes. The original hit this and worked
+around it; here `detLn` in `src/core/rng.ts` avoids `Math.log` entirely,
+building the logarithm from operations ECMAScript does specify exactly.
+
+## Prior art
+
+The idea is old and has been done well several times. Worth reading:
+
+- [bashalarmistalt/decimen-optical-transfer](https://github.com/bashalarmistalt/decimen-optical-transfer) — the direct inspiration for this rebuild
+- [divan/txqr](https://github.com/divan/txqr) (2018) — animated QR + fountain codes, with two excellent write-ups
+- [sz3/libcimbar](https://github.com/sz3/libcimbar) — abandons QR for a purpose-built colour code, and gets there first
+- Timex Data Link (1994) — data over CRT flicker
+
+## Licence
+
+MIT.
