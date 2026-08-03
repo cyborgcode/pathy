@@ -131,8 +131,18 @@ npm run build        # typecheck + production bundle
 ### Deployment
 
 `.github/workflows/pages.yml` typechecks, runs the test suite, builds with
-`BASE_PATH` set to the repository name, and publishes `dist/` to Pages on
-every push.
+`BASE_PATH` set to the repository name, and force-pushes `dist/` to the
+`gh-pages` branch on every push.
+
+**One-time setup:** Settings → Pages → Source → *Deploy from a branch*, branch
+`gh-pages`, folder `/ (root)`. Until that is set, the workflow publishes the
+branch successfully but nothing is served.
+
+It publishes a branch rather than uploading a Pages artifact because the
+artifact route goes through the Pages REST API, and the Actions token is
+refused by it — `Resource not accessible by integration`, i.e. it cannot
+create or configure a Pages site. Pushing a branch needs only
+`contents: write`.
 
 Two things about a project-pages deploy are easy to get wrong and invisible
 until someone clicks: assets need the `/<repo>/` prefix, and inter-page links

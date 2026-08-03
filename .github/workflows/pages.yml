@@ -3,6 +3,16 @@ name: Deploy to GitHub Pages
 # Pages serves the app over HTTPS, which is what getUserMedia requires. That
 # makes the deployed site the easiest way to actually use this: open it on two
 # devices, no local server and no certificate exception on either of them.
+#
+# This publishes to the gh-pages branch rather than uploading a Pages artifact.
+# The artifact route needs the Pages REST API, and the Actions token here is
+# refused by it ("Resource not accessible by integration") — it cannot create
+# or configure a Pages site. Pushing a branch only needs `contents: write`,
+# which the token does have, so this path works without any elevated
+# permission.
+#
+# One manual step remains, once: set Settings -> Pages -> Source to
+# "Deploy from a branch", branch `gh-pages`, folder `/ (root)`.
 
 on:
   push:
@@ -13,18 +23,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Never let two deploys race; queue instead of cancelling, so a run that is
-# already publishing is allowed to finish.
+# Never let two publishes race; queue rather than cancel, so a run that is
+# already pushing is allowed to finish.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,30 +46,29 @@ jobs:
 
       # Typecheck and the full unit + transfer suite. The headless browser test
       # is not run here: it needs a Chromium download, and what it covers
-      # (MediaStream plumbing) is not what a deploy can break.
+      # (MediaStream plumbing) is not something a deploy can break.
       - run: npm test
 
       - name: Build
         env:
-          # Project pages live under /<repo>/, not the domain root.
+          # Project pages are served from /<repo>/, not the domain root.
           BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
 
-      - uses: actions/configure-pages@v5
-        with:
-          # Turn Pages on if it has never been enabled for this repository.
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages
+        run: |
+          set -euo pipefail
+          cd dist
+          # Stop Pages running the output through Jekyll, which would drop any
+          # path with a leading underscore and slow every publish down.
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish ${GITHUB_SHA}"
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
