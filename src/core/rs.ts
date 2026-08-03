@@ -281,7 +281,6 @@ export class RsInterleaver {
     if (payload.length !== this.payloadBytes) {
       throw new RangeError(`expected ${this.payloadBytes} payload bytes, got ${payload.length}`);
     }
-    const stride = this.shardData + this.shardParity;
     const out = new Uint8Array(this.codedBytes);
     const scratch = new Uint8Array(this.shardData);
     const shards = this.shards;

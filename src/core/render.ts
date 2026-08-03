@@ -27,6 +27,7 @@ import {
   CALIB_Y1,
   CALIB_SLOTS,
 } from './profile.js';
+import { whitenInPlace } from './whiten.js';
 
 export interface RgbaImage {
   width: number;
@@ -61,37 +62,64 @@ function readCellValue(coded: Uint8Array, index: number, bits: number): number {
   return v;
 }
 
-function fillRect(
-  img: RgbaImage,
+// Pixels are written as packed 32-bit words rather than four byte stores.
+// The sender has to produce a frame every display interval; at 60 Hz and a
+// million-odd pixels a frame, the difference is most of the budget.
+const LITTLE_ENDIAN = (() => {
+  const probe = new Uint32Array(1);
+  new Uint8Array(probe.buffer)[0] = 1;
+  return probe[0] === 1;
+})();
+
+function packRgba(r: number, g: number, b: number): number {
+  return (
+    LITTLE_ENDIAN
+      ? ((255 << 24) | (b << 16) | (g << 8) | r)
+      : ((r << 24) | (g << 16) | (b << 8) | 255)
+  ) >>> 0;
+}
+
+const WHITE = packRgba(255, 255, 255);
+
+function fillRect32(
+  px: Uint32Array,
+  width: number, height: number,
   x0: number, y0: number, x1: number, y1: number,
-  r: number, g: number, b: number,
+  colour: number,
 ): void {
-  const { width, height, data } = img;
   const xa = Math.max(0, x0);
   const xb = Math.min(width, x1);
   const ya = Math.max(0, y0);
   const yb = Math.min(height, y1);
   for (let y = ya; y < yb; y++) {
-    let p = (y * width + xa) * 4;
-    for (let x = xa; x < xb; x++) {
-      data[p] = r;
-      data[p + 1] = g;
-      data[p + 2] = b;
-      data[p + 3] = 255;
-      p += 4;
-    }
+    px.fill(colour, y * width + xa, y * width + xb);
   }
 }
 
-function drawMarker(img: RgbaImage, ox: number, oy: number, box: number): void {
+let whiteBuf = new Uint8Array(0);
+
+/** Whiten into a reusable buffer; at 60 fps a per-frame copy is not free. */
+function whitenScratch(coded: Uint8Array): Uint8Array {
+  if (whiteBuf.length < coded.length) whiteBuf = new Uint8Array(coded.length);
+  const view = whiteBuf.subarray(0, coded.length);
+  view.set(coded);
+  whitenInPlace(view);
+  return view;
+}
+
+function drawMarker(
+  px: Uint32Array, w: number, h: number,
+  ox: number, oy: number, box: number,
+): void {
   // 9 units: white surround, then the 1:1:3:1:1 finder that the detector's
   // run-length scan locks onto.
   const u = box / MARKER_UNITS;
-  const at = (k: number) => Math.round(k * u);
-  fillRect(img, ox, oy, ox + box, oy + box, 255, 255, 255);
-  fillRect(img, ox + at(1), oy + at(1), ox + at(8), oy + at(8), 0, 0, 0);
-  fillRect(img, ox + at(2), oy + at(2), ox + at(7), oy + at(7), 255, 255, 255);
-  fillRect(img, ox + at(3), oy + at(3), ox + at(6), oy + at(6), 0, 0, 0);
+  const at = (k: number): number => Math.round(k * u);
+  const BLACK = packRgba(0, 0, 0);
+  fillRect32(px, w, h, ox, oy, ox + box, oy + box, WHITE);
+  fillRect32(px, w, h, ox + at(1), oy + at(1), ox + at(8), oy + at(8), BLACK);
+  fillRect32(px, w, h, ox + at(2), oy + at(2), ox + at(7), oy + at(7), WHITE);
+  fillRect32(px, w, h, ox + at(3), oy + at(3), ox + at(6), oy + at(6), BLACK);
 }
 
 /**
@@ -113,49 +141,59 @@ export function renderFrame(
   const code = size - margin * 2;
   if (code <= n) throw new RangeError('render size too small for this profile');
 
+  const pixels = new Uint32Array(img.data.buffer, img.data.byteOffset, size * size);
+
   // Quiet zone plus a white code background; every reserved region paints
   // over it, and data cells cover the rest.
-  fillRect(img, 0, 0, size, size, 255, 255, 255);
+  pixels.fill(WHITE);
 
-  const px = (t: number) => margin + Math.round(t * code);
+  const px = (t: number): number => margin + Math.round(t * code);
 
-  // Data cells.
-  const cellsList = geo.dataCells;
+  // Cell edges precomputed once: rounding per cell inside the hot loop is
+  // measurable at this cell count.
+  const edge = new Int32Array(n + 1);
+  for (let i = 0; i <= n; i++) edge[i] = margin + Math.round((i * code) / n);
+
+  // Palette lookup, so the inner loop is a single indexed store.
   const bits = profile.bitsPerCell;
+  const palette = new Uint32Array(8);
+  for (let v = 0; v < 8; v++) {
+    const [r, g, b] = cellRgb(v, bits);
+    palette[v] = packRgba(r, g, b);
+  }
+
+  // Data cells. Whitening keeps the cell distribution balanced whatever the
+  // file contains, which is what the receiver's local thresholds rely on.
+  const cellsList = geo.dataCells;
+  const white = whitenScratch(coded);
   for (let i = 0; i < cellsList.length; i++) {
     const idx = cellsList[i];
     const row = (idx / n) | 0;
     const col = idx - row * n;
-    const v = readCellValue(coded, i, bits);
-    const [r, g, b] = cellRgb(v, bits);
-    fillRect(
-      img,
-      margin + Math.round((col * code) / n),
-      margin + Math.round((row * code) / n),
-      margin + Math.round(((col + 1) * code) / n),
-      margin + Math.round(((row + 1) * code) / n),
-      r, g, b,
-    );
+    const colour = palette[readCellValue(white, i, bits)];
+    const x0 = edge[col];
+    const x1 = edge[col + 1];
+    for (let y = edge[row], y1 = edge[row + 1]; y < y1; y++) {
+      pixels.fill(colour, y * size + x0, y * size + x1);
+    }
   }
 
   // Corner markers.
   const box = Math.round(MARKER_BOX * code);
-  drawMarker(img, px(0), px(0), box);
-  drawMarker(img, px(1 - MARKER_BOX), px(0), box);
-  drawMarker(img, px(0), px(1 - MARKER_BOX), box);
-  drawMarker(img, px(1 - MARKER_BOX), px(1 - MARKER_BOX), box);
+  drawMarker(pixels, size, size, px(0), px(0), box);
+  drawMarker(pixels, size, size, px(1 - MARKER_BOX), px(0), box);
+  drawMarker(pixels, size, size, px(0), px(1 - MARKER_BOX), box);
+  drawMarker(pixels, size, size, px(1 - MARKER_BOX), px(1 - MARKER_BOX), box);
 
   // Control strip: the profile id, in plain black and white so it survives
   // conditions that the colour grid would not.
   const cbits = controlBits(profile.id);
   const cy0 = px(CONTROL_Y0);
   const cy1 = px(CONTROL_Y1);
-  fillRect(img, px(CONTROL_X0), cy0, px(CONTROL_X1), cy1, 255, 255, 255);
   for (let i = 0; i < CONTROL_SLOTS; i++) {
     const t0 = CONTROL_X0 + ((CONTROL_X1 - CONTROL_X0) * i) / CONTROL_SLOTS;
     const t1 = CONTROL_X0 + ((CONTROL_X1 - CONTROL_X0) * (i + 1)) / CONTROL_SLOTS;
-    const v = cbits[i] ? 255 : 0;
-    fillRect(img, px(t0), cy0, px(t1), cy1, v, v, v);
+    fillRect32(pixels, size, size, px(t0), cy0, px(t1), cy1, cbits[i] ? WHITE : packRgba(0, 0, 0));
   }
 
   // Calibration strip: all eight palette colours, so the receiver can solve
@@ -167,7 +205,7 @@ export function renderFrame(
     const t0 = CALIB_X0 + ((CALIB_X1 - CALIB_X0) * i) / CALIB_SLOTS;
     const t1 = CALIB_X0 + ((CALIB_X1 - CALIB_X0) * (i + 1)) / CALIB_SLOTS;
     const [r, g, b] = cellRgb(i, 3);
-    fillRect(img, px(t0), gy0, px(t1), gy1, r, g, b);
+    fillRect32(pixels, size, size, px(t0), gy0, px(t1), gy1, packRgba(r, g, b));
   }
 
   return img;

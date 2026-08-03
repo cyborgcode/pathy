@@ -16,6 +16,7 @@ import { applyHomography, solveHomography } from './homography.js';
 import { detectCode } from './detect.js';
 import type { RgbaImage } from './render.js';
 import { packCells } from './render.js';
+import { whitenInPlace } from './whiten.js';
 import {
   type Profile,
   profileById,
@@ -168,11 +169,39 @@ function readProfileId(img: RgbaImage, h: Float64Array, lumaThreshold: number): 
 }
 
 /**
+ * Unsharp strength, applied separately to luma and chroma.
+ *
+ * The camera does not degrade these equally: 4:2:0 subsampling and chroma
+ * denoise smear Cb/Cr across several pixels while luma keeps most of its
+ * detail. Sharpening them by the same amount either leaves chroma smeared or
+ * over-amplifies luma noise, so they get separate gains.
+ */
+const SHARPEN_LUMA = 0.6;
+const SHARPEN_CHROMA = 1.7;
+/** Half-width, in cells, of the window a cell is thresholded against. */
+const LOCAL_RADIUS = 10;
+
+/**
  * Resample the data grid.
  *
- * Grid intersections are projected once and cells interpolate between them:
- * perspective within a single cell is negligible, and this turns four
- * homography evaluations per cell into four multiply-adds.
+ * Three things happen here, and each one is load-bearing:
+ *
+ *  - **Projected once, interpolated after.** Grid intersections go through
+ *    the homography; cells bilinearly interpolate between them. Perspective
+ *    within a single cell is negligible, so this turns four homography
+ *    evaluations per cell into four multiply-adds.
+ *
+ *  - **Sharpening.** Optical blur mixes each cell with its neighbours, and at
+ *    five or six pixels per cell that crosstalk is easily enough to flip a
+ *    channel. A 3x3 unsharp mask in *cell* space — not pixel space — inverts
+ *    most of it, because after resampling the blur has become a small,
+ *    well-conditioned kernel.
+ *
+ *  - **Local thresholds.** Each cell is compared against the average of the
+ *    data cells around it rather than one number for the whole frame. Glare,
+ *    vignetting and white-balance drift are all slowly varying, so a local
+ *    average tracks them for free. Whitening upstream is what makes the
+ *    average meaningful.
  */
 function readCells(
   img: RgbaImage,
@@ -193,47 +222,73 @@ function readCells(
   }
 
   const { width, height, data } = img;
-  const values = new Uint8Array(dataCells.length);
-  const [tr, tg, tb] = cal.thr;
+  const cellCount = n * n;
+  // Three interleaved channel planes at cell resolution.
+  const planes = new Float32Array(cellCount * 3);
 
-  // Four samples in the cell interior, away from the edges where a
-  // neighbouring colour bleeds in through the camera's chroma filtering.
-  const offsets = [0.3, 0.7];
+  // Sample tight to the cell centre: under blur, the further out the sample
+  // sits the more of the neighbour's colour it collects.
+  const off = [0.4, 0.6];
 
-  for (let i = 0; i < dataCells.length; i++) {
-    const idx = dataCells[i];
-    const row = (idx / n) | 0;
-    const col = idx - row * n;
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const o00 = (row * (n + 1) + col) * 2;
+      const o01 = o00 + 2;
+      const o10 = ((row + 1) * (n + 1) + col) * 2;
+      const o11 = o10 + 2;
 
-    const o00 = (row * (n + 1) + col) * 2;
-    const o01 = o00 + 2;
-    const o10 = ((row + 1) * (n + 1) + col) * 2;
-    const o11 = o10 + 2;
-
-    let r = 0, g = 0, b = 0, cnt = 0;
-    for (let a = 0; a < 2; a++) {
-      const v = offsets[a];
-      for (let c = 0; c < 2; c++) {
-        const u = offsets[c];
-        const w00 = (1 - u) * (1 - v);
-        const w01 = u * (1 - v);
-        const w10 = (1 - u) * v;
-        const w11 = u * v;
-        const x = (grid[o00] * w00 + grid[o01] * w01 + grid[o10] * w10 + grid[o11] * w11) | 0;
-        const y = (grid[o00 + 1] * w00 + grid[o01 + 1] * w01 + grid[o10 + 1] * w10 + grid[o11 + 1] * w11) | 0;
-        if (x < 0 || y < 0 || x >= width || y >= height) continue;
-        const p = (y * width + x) * 4;
-        r += data[p];
-        g += data[p + 1];
-        b += data[p + 2];
-        cnt++;
+      let r = 0, g = 0, b = 0, cnt = 0;
+      for (let a = 0; a < 2; a++) {
+        const v = off[a];
+        for (let c = 0; c < 2; c++) {
+          const u = off[c];
+          const w00 = (1 - u) * (1 - v);
+          const w01 = u * (1 - v);
+          const w10 = (1 - u) * v;
+          const w11 = u * v;
+          const x = (grid[o00] * w00 + grid[o01] * w01 + grid[o10] * w10 + grid[o11] * w11) | 0;
+          const y = (grid[o00 + 1] * w00 + grid[o01 + 1] * w01 + grid[o10 + 1] * w10 + grid[o11 + 1] * w11) | 0;
+          if (x < 0 || y < 0 || x >= width || y >= height) continue;
+          const p = (y * width + x) * 4;
+          r += data[p];
+          g += data[p + 1];
+          b += data[p + 2];
+          cnt++;
+        }
+      }
+      const o = (row * n + col) * 3;
+      if (cnt === 0) {
+        planes[o] = cal.thr[0];
+        planes[o + 1] = cal.thr[1];
+        planes[o + 2] = cal.thr[2];
+      } else {
+        planes[o] = r / cnt;
+        planes[o + 1] = g / cnt;
+        planes[o + 2] = b / cnt;
       }
     }
-    if (cnt === 0) {
-      values[i] = 0;
-      continue;
-    }
-    r /= cnt; g /= cnt; b /= cnt;
+  }
+
+  sharpenPlanes(planes, n);
+
+  // Threshold statistics come only from data cells; markers and the strips
+  // are strongly biased and would drag the local average around.
+  const mask = new Uint8Array(cellCount);
+  for (let i = 0; i < dataCells.length; i++) mask[dataCells[i]] = 1;
+
+  const thresholds = localThresholds(planes, mask, n, cal);
+
+  const values = new Uint8Array(dataCells.length);
+  for (let i = 0; i < dataCells.length; i++) {
+    const idx = dataCells[i];
+    const o = idx * 3;
+    const t = idx * 3;
+    const r = planes[o];
+    const g = planes[o + 1];
+    const b = planes[o + 2];
+    const tr = thresholds[t];
+    const tg = thresholds[t + 1];
+    const tb = thresholds[t + 2];
 
     if (bits === 3) {
       values[i] = (r > tr ? 1 : 0) | (g > tg ? 2 : 0) | (b > tb ? 4 : 0);
@@ -242,10 +297,129 @@ function readCells(
       // channels: whichever is further from its threshold carries more weight.
       values[i] = (r - tr + (b - tb) > 0 ? 1 : 0) | (g > tg ? 2 : 0);
     } else {
-      values[i] = (r + g + b) / 3 > cal.lumaThreshold ? 1 : 0;
+      values[i] = r + g + b > tr + tg + tb ? 1 : 0;
     }
   }
   return values;
+}
+
+/** 3x3 unsharp mask in cell space, undoing inter-cell optical bleed. */
+function sharpenPlanes(planes: Float32Array, n: number): void {
+  const blurred = new Float32Array(planes.length);
+  for (let row = 0; row < n; row++) {
+    const y0 = row > 0 ? row - 1 : 0;
+    const y1 = row < n - 1 ? row + 1 : n - 1;
+    for (let col = 0; col < n; col++) {
+      const x0 = col > 0 ? col - 1 : 0;
+      const x1 = col < n - 1 ? col + 1 : n - 1;
+      let r = 0, g = 0, b = 0, cnt = 0;
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const o = (y * n + x) * 3;
+          r += planes[o];
+          g += planes[o + 1];
+          b += planes[o + 2];
+          cnt++;
+        }
+      }
+      const o = (row * n + col) * 3;
+      blurred[o] = r / cnt;
+      blurred[o + 1] = g / cnt;
+      blurred[o + 2] = b / cnt;
+    }
+  }
+  // Sharpen in YCbCr so the two components can take different gains, then
+  // convert straight back to RGB for thresholding.
+  for (let i = 0; i < planes.length; i += 3) {
+    const r = planes[i];
+    const g = planes[i + 1];
+    const b = planes[i + 2];
+    const br = blurred[i];
+    const bg = blurred[i + 1];
+    const bb = blurred[i + 2];
+
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = b - y;
+    const cr = r - y;
+    const by = 0.299 * br + 0.587 * bg + 0.114 * bb;
+    const bcb = bb - by;
+    const bcr = br - by;
+
+    const ys = y + SHARPEN_LUMA * (y - by);
+    const cbs = cb + SHARPEN_CHROMA * (cb - bcb);
+    const crs = cr + SHARPEN_CHROMA * (cr - bcr);
+
+    const rr = ys + crs;
+    const bbv = ys + cbs;
+    planes[i] = rr;
+    planes[i + 1] = (ys - 0.299 * rr - 0.114 * bbv) / 0.587;
+    planes[i + 2] = bbv;
+  }
+}
+
+/**
+ * Per-cell thresholds from a box average of nearby data cells, via integral
+ * images so the window size costs nothing.
+ */
+function localThresholds(
+  planes: Float32Array,
+  mask: Uint8Array,
+  n: number,
+  cal: Calibration,
+): Float32Array {
+  const stride = n + 1;
+  const sum = new Float64Array(stride * stride * 3);
+  const cnt = new Float64Array(stride * stride);
+
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const i = row * n + col;
+      const o = i * 3;
+      const m = mask[i];
+      const a = (row + 1) * stride + (col + 1);
+      const up = row * stride + (col + 1);
+      const left = (row + 1) * stride + col;
+      const diag = row * stride + col;
+
+      cnt[a] = cnt[up] + cnt[left] - cnt[diag] + m;
+      for (let c = 0; c < 3; c++) {
+        sum[a * 3 + c] =
+          sum[up * 3 + c] + sum[left * 3 + c] - sum[diag * 3 + c] + (m ? planes[o + c] : 0);
+      }
+    }
+  }
+
+  const out = new Float32Array(n * n * 3);
+  const R = LOCAL_RADIUS;
+  for (let row = 0; row < n; row++) {
+    const r0 = Math.max(0, row - R);
+    const r1 = Math.min(n - 1, row + R);
+    for (let col = 0; col < n; col++) {
+      const c0 = Math.max(0, col - R);
+      const c1 = Math.min(n - 1, col + R);
+
+      const a = (r1 + 1) * stride + (c1 + 1);
+      const b = r0 * stride + (c1 + 1);
+      const c = (r1 + 1) * stride + c0;
+      const d = r0 * stride + c0;
+
+      const count = cnt[a] - cnt[b] - cnt[c] + cnt[d];
+      const o = (row * n + col) * 3;
+      if (count < 24) {
+        // Not enough data cells nearby to average; fall back to the
+        // calibration strip's global reading.
+        out[o] = cal.thr[0];
+        out[o + 1] = cal.thr[1];
+        out[o + 2] = cal.thr[2];
+        continue;
+      }
+      for (let ch = 0; ch < 3; ch++) {
+        out[o + ch] =
+          (sum[a * 3 + ch] - sum[b * 3 + ch] - sum[c * 3 + ch] + sum[d * 3 + ch]) / count;
+      }
+    }
+  }
+  return out;
 }
 
 export interface DecodeOptions {
@@ -273,6 +447,7 @@ export function decodeFrame(img: RgbaImage, opts: DecodeOptions = {}): DecodeRes
   const geo = geometryFor(profile);
   const values = readCells(img, h, geo.cells, geo.dataCells, profile.bitsPerCell, cal);
   const coded = packCells(values, profile.bitsPerCell, geo.interleaver.codedBytes);
+  whitenInPlace(coded);
 
   const res = geo.interleaver.decode(coded);
   if (!res.ok) return { ok: false, reason: DecodeFailure.RsFailed };

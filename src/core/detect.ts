@@ -38,6 +38,140 @@ export function toGray(img: RgbaImage): Uint8Array {
   return out;
 }
 
+export interface GrayPlane {
+  gray: Uint8Array;
+  width: number;
+  height: number;
+  scale: number;
+}
+
+/**
+ * Grayscale at 1/scale resolution.
+ *
+ * Marker search does not need full resolution — a marker is around a hundred
+ * pixels across, and halving the image quarters the cost of the two most
+ * expensive stages in the whole decoder. The centres that come back are then
+ * refined against the full-resolution image, so nothing is given up on
+ * registration accuracy, which is what the grid actually depends on.
+ */
+export function grayDownsample(img: RgbaImage, scale: number): GrayPlane {
+  if (scale <= 1) {
+    return { gray: toGray(img), width: img.width, height: img.height, scale: 1 };
+  }
+  const w = Math.floor(img.width / scale);
+  const h = Math.floor(img.height / scale);
+  const out = new Uint8Array(w * h);
+  const { width, data } = img;
+
+  if (scale === 2) {
+    // Specialised 2x2: sum the channels first, then take luma once. Doing it
+    // the other way round costs four multiplies per output pixel instead of
+    // three, over more than a million pixels a frame.
+    const rowBytes = width * 4;
+    for (let y = 0; y < h; y++) {
+      let p0 = y * 2 * rowBytes;
+      let o = y * w;
+      for (let x = 0; x < w; x++, p0 += 8, o++) {
+        const p1 = p0 + 4;
+        const p2 = p0 + rowBytes;
+        const p3 = p2 + 4;
+        const r = data[p0] + data[p1] + data[p2] + data[p3];
+        const g = data[p0 + 1] + data[p1 + 1] + data[p2 + 1] + data[p3 + 1];
+        const b = data[p0 + 2] + data[p1 + 2] + data[p2 + 2] + data[p3 + 2];
+        out[o] = (r * 77 + g * 150 + b * 29) >> 10; // /4 for the mean, /256 for luma
+      }
+    }
+    return { gray: out, width: w, height: h, scale };
+  }
+
+  const n = scale * scale;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let dy = 0; dy < scale; dy++) {
+        let p = ((y * scale + dy) * width + x * scale) * 4;
+        for (let dx = 0; dx < scale; dx++, p += 4) {
+          r += data[p];
+          g += data[p + 1];
+          b += data[p + 2];
+        }
+      }
+      out[y * w + x] = (r * 77 + g * 150 + b * 29) / (n * 256);
+    }
+  }
+  return { gray: out, width: w, height: h, scale };
+}
+
+/**
+ * Snap a marker centre onto the full-resolution image.
+ *
+ * Walks the dark core out to its edges horizontally and vertically and takes
+ * the midpoint. A pixel of error here is a fraction of a cell of error at the
+ * far corner of the grid, so this is worth doing properly.
+ */
+export function refineCenter(
+  img: RgbaImage,
+  cx0: number,
+  cy0: number,
+  moduleSize: number,
+): [number, number] | null {
+  const { width, height, data } = img;
+  // Luma on demand: only a few thousand pixels around each corner are
+  // touched, so converting the whole frame first would cost more than the
+  // rest of detection.
+  const lum = (x: number, y: number): number => {
+    const p = (y * width + x) * 4;
+    return (data[p] * 77 + data[p + 1] * 150 + data[p + 2] * 29) >> 8;
+  };
+
+  let cx = Math.round(cx0);
+  let cy = Math.round(cy0);
+  const rad = Math.max(3, Math.round(moduleSize * 2.2));
+  const maxRun = Math.max(4, Math.round(moduleSize * 5));
+
+  let fx = cx0;
+  let fy = cy0;
+
+  for (let iter = 0; iter < 2; iter++) {
+    if (cx < 0 || cy < 0 || cx >= width || cy >= height) return null;
+
+    let mn = 255;
+    let mx = 0;
+    const y0 = Math.max(0, cy - rad);
+    const y1 = Math.min(height - 1, cy + rad);
+    const x0 = Math.max(0, cx - rad);
+    const x1 = Math.min(width - 1, cx + rad);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const v = lum(x, y);
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+    }
+    if (mx - mn < 30) return null;
+    const thr = (mn + mx) / 2;
+    if (lum(cx, cy) > thr) return null;
+
+    let xl = cx;
+    while (xl - 1 >= 0 && lum(xl - 1, cy) <= thr && cx - xl < maxRun) xl--;
+    let xr = cx;
+    while (xr + 1 < width && lum(xr + 1, cy) <= thr && xr - cx < maxRun) xr++;
+    let yt = cy;
+    while (yt - 1 >= 0 && lum(cx, yt - 1) <= thr && cy - yt < maxRun) yt--;
+    let yb = cy;
+    while (yb + 1 < height && lum(cx, yb + 1) <= thr && yb - cy < maxRun) yb++;
+
+    // A run that ran away is not the marker core; keep what we had.
+    if (xr - xl >= maxRun || yb - yt >= maxRun) return null;
+
+    fx = (xl + xr) / 2;
+    fy = (yt + yb) / 2;
+    cx = Math.round(fx);
+    cy = Math.round(fy);
+  }
+  return [fx, fy];
+}
+
 const BLOCK = 8;
 const MIN_DYNAMIC_RANGE = 24;
 
@@ -250,7 +384,7 @@ export function findMarkers(bin: Uint8Array, width: number, height: number): Mar
  * rotation up to about 45 degrees, which is well past what anyone holds a
  * phone at.
  */
-export function orderCorners(markers: Marker[]): Float64Array | null {
+export function orderCorners(markers: Marker[]): Marker[] | null {
   if (markers.length < 4) return null;
   const best = markers.slice(0, 8);
 
@@ -289,7 +423,7 @@ export function orderCorners(markers: Marker[]): Float64Array | null {
   const distinct = new Set([tl, tr, bl, br]);
   if (distinct.size !== 4) return null;
 
-  return Float64Array.of(tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, br.x, br.y);
+  return [tl, tr, bl, br];
 }
 
 function hullArea(q: Marker[]): number {
@@ -306,12 +440,38 @@ function hullArea(q: Marker[]): number {
   return Math.abs(area) / 2;
 }
 
-/** Full detection pass: binarise, find markers, order them. */
+/**
+ * Full detection pass.
+ *
+ * Search runs on a downscaled copy for speed, then each corner is snapped
+ * back onto the full-resolution image. Refinement is best-effort: if a corner
+ * cannot be improved, the scaled-up estimate stands rather than failing the
+ * whole frame.
+ */
 export function detectCode(img: RgbaImage): DetectResult | null {
-  const gray = toGray(img);
-  const bin = binarize(gray, img.width, img.height);
-  const markers = findMarkers(bin, img.width, img.height);
-  const corners = orderCorners(markers);
-  if (!corners) return null;
+  const scale = Math.min(img.width, img.height) >= 900 ? 2 : 1;
+  const plane = grayDownsample(img, scale);
+  const bin = binarize(plane.gray, plane.width, plane.height);
+  const markers = findMarkers(bin, plane.width, plane.height);
+  const ordered = orderCorners(markers);
+  if (!ordered) return null;
+
+  const corners = new Float64Array(8);
+  if (scale === 1) {
+    for (let i = 0; i < 4; i++) {
+      corners[i * 2] = ordered[i].x;
+      corners[i * 2 + 1] = ordered[i].y;
+    }
+    return { corners, markers };
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const x = ordered[i].x * scale;
+    const y = ordered[i].y * scale;
+    const mod = ordered[i].moduleSize * scale;
+    const refined = refineCenter(img, x, y, mod);
+    corners[i * 2] = refined ? refined[0] : x;
+    corners[i * 2 + 1] = refined ? refined[1] : y;
+  }
   return { corners, markers };
 }
