@@ -1,0 +1,24 @@
+{
+  "name": "photon-optical-transfer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "High-throughput screen-to-camera file transfer over light. Colour-grid physical layer + windowed fountain codes.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "bench": "tsx bench/run.ts",
+    "e2e": "tsx tests/e2e/browser-loop.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "playwright-core": "^1.49.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
