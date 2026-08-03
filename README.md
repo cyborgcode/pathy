@@ -101,21 +101,44 @@ be.
 
 ## Running it
 
+**→ [cyborgcode.github.io/pathy](https://cyborgcode.github.io/pathy/)**
+
+Open that on both devices — **Send** on the one holding the file, **Receive**
+on the one with the camera — and point the second at the first. Nothing to
+install, and the page is static, so once it has loaded neither device needs
+the network again for the transfer itself.
+
+Hosting it matters more than it sounds: `getUserMedia` is stripped on insecure
+origins, so running locally means an HTTPS dev server and a certificate
+exception on the receiving device — a lot of ceremony for a transfer that
+never touches the network. Pages serves HTTPS, so that all goes away.
+
+Locally:
+
 ```bash
 npm install
-npm run dev          # then open the printed https URL on both devices
+npm run dev          # https dev server, --host so a phone on the LAN can reach it
 ```
-
-`getUserMedia` is stripped on insecure origins, so the dev server needs HTTPS
-and the receiving device has to accept the self-signed certificate — which is
-admittedly ironic for a transfer that never touches the network.
 
 ```bash
 npm test             # unit + end-to-end transfer tests
 npm run bench        # throughput across profiles and conditions
 npm run e2e          # headless Chromium: real MediaStream, real workers
+npm run smoke        # loads the built site under a base path, as Pages serves it
 npm run build        # typecheck + production bundle
 ```
+
+### Deployment
+
+`.github/workflows/pages.yml` typechecks, runs the test suite, builds with
+`BASE_PATH` set to the repository name, and publishes `dist/` to Pages on
+every push.
+
+Two things about a project-pages deploy are easy to get wrong and invisible
+until someone clicks: assets need the `/<repo>/` prefix, and inter-page links
+must be relative or they escape it. `npm run smoke` serves the build under a
+subdirectory and loads every page in Chromium to check exactly that — a wrong
+base path still produces a perfectly valid bundle.
 
 ## How a frame is put together
 

@@ -11,7 +11,8 @@
     "preview": "vite preview --host",
     "test": "vitest run",
     "bench": "tsx bench/run.ts",
-    "e2e": "vite build && tsx tests/e2e/browser-loop.ts"
+    "e2e": "E2E=1 vite build && tsx tests/e2e/browser-loop.ts",
+    "smoke": "BASE_PATH=/pathy/ vite build && tsx tests/e2e/pages-smoke.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
