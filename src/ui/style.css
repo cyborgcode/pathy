@@ -35,6 +35,12 @@
   /* Terminal green earns exactly one job: a completed, verified transfer. */
   --confirm: #4af626;
 
+  /* Phosphor bloom around a lit control. Overridden per state. Note these
+     alphas are multiplied by the glow layer's own opacity, so the value on
+     screen is lower than it reads here. */
+  --glow-core: rgba(234, 234, 234, 0.55);
+  --glow-halo: rgba(234, 234, 234, 0.22);
+
   --tap: 44px;
 
   --safe-t: env(safe-area-inset-top, 0px);
@@ -189,6 +195,7 @@ input[type="checkbox"] {
 
 /* No radius anywhere. Right angles are the point. */
 button {
+  position: relative;
   background: var(--fg);
   color: var(--bg);
   border: 1px solid var(--fg);
@@ -206,18 +213,73 @@ button {
   touch-action: manipulation;
   transition: background-color 120ms linear, color 120ms linear, border-color 120ms linear;
 }
+
+/*
+ * Phosphor bloom.
+ *
+ * A lit control on a CRT does not have a hard edge; the beam spills into the
+ * glass around it. Two shadows do the work — a tight core and a wide, much
+ * fainter halo — because a single large blur reads as a soft drop shadow,
+ * which is the opposite of what this panel is going for.
+ *
+ * Carried on a pseudo-element rather than the button itself so the state
+ * change is an opacity crossfade. Opacity composites on the GPU; animating
+ * box-shadow directly repaints the element every frame.
+ */
+button::after {
+  content: "";
+  position: absolute;
+  /* Sits on the border box, so the bloom starts exactly at the lit edge. */
+  inset: -1px;
+  pointer-events: none;
+  box-shadow:
+    0 0 16px var(--glow-core),
+    0 0 40px var(--glow-halo);
+  opacity: 0.72;
+  transition: opacity 140ms linear;
+}
+
 button.secondary {
   background: transparent;
   color: var(--fg-2);
   border-color: var(--line-2);
+  /* Dimmer than a primary, but still emitting: on a touch device the hover
+     state never arrives, and an entirely unlit control looks disabled. */
+  --glow-core: rgba(234, 234, 234, 0.3);
+  --glow-halo: rgba(234, 234, 234, 0.12);
 }
+button.secondary::after { opacity: 0.5; }
 
 @media (hover: hover) {
-  button:hover:not(:disabled) { background: var(--hazard); border-color: var(--hazard); color: var(--fg); }
-  button.secondary:hover:not(:disabled) { color: var(--fg); border-color: var(--fg); background: transparent; }
+  button:hover:not(:disabled) {
+    background: var(--hazard);
+    border-color: var(--hazard);
+    color: var(--fg);
+    --glow-core: rgba(230, 25, 25, 0.75);
+    --glow-halo: rgba(230, 25, 25, 0.35);
+  }
+  button.secondary:hover:not(:disabled) {
+    color: var(--fg);
+    border-color: var(--fg);
+    background: transparent;
+    --glow-core: rgba(234, 234, 234, 0.42);
+    --glow-halo: rgba(234, 234, 234, 0.18);
+  }
+  button:hover:not(:disabled)::after { opacity: 1; }
 }
+
+/* Pressed: the bloom collapses to the core, the way an element being driven
+   momentarily harder looks tighter rather than wider. */
 button:active:not(:disabled) { transform: translateY(1px); }
+button:active:not(:disabled)::after { opacity: 1; box-shadow: 0 0 8px var(--glow-core); }
+
+/* Keyboard focus lights it in hazard without needing the pointer. */
+button:focus-visible { --glow-core: rgba(230, 25, 25, 0.7); --glow-halo: rgba(230, 25, 25, 0.3); }
+button:focus-visible::after { opacity: 1; }
+
 button:disabled { opacity: 0.3; cursor: not-allowed; }
+/* Nothing inert should look energised. */
+button:disabled::after { opacity: 0; }
 
 select,
 input[type="number"],
