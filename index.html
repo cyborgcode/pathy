@@ -4,10 +4,9 @@
 <meta charset="utf-8">
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.">
-<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
-<meta name="color-scheme" content="light dark">
+<meta name="description" content="Optical file transport. Screen to camera, one way, no network path between the devices.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,34 +15,46 @@
 <!-- black-translucent puts the page under the status bar, which is what
      viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta property="og:title" content="Photon — file transfer over light">
-<meta property="og:description" content="Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.">
+<meta property="og:title" content="Photon &mdash; optical file transport">
+<meta property="og:description" content="Optical file transport. Screen to camera, one way, no network path between the devices.">
 <meta property="og:type" content="website">
-<title>Photon — file transfer over light</title>
+<title>Photon &mdash; optical file transport</title>
 <link rel="stylesheet" href="/src/ui/style.css">
 </head>
 <body>
 <main class="wrap">
   <header>
     <h1>Photon</h1>
-    <p class="sub">A file moves between two devices as light. One screen paints it, the other reads it with a camera. No network, no pairing, nothing to install.</p>
+    <p class="ident">
+      <span>Optical file transport</span>
+      <span><b>Rev</b> 1.0</span>
+      <span><b>Net</b> none</span>
+    </p>
   </header>
 
   <nav class="cards">
     <a class="card" href="send.html">
-      <b>Send</b>
-      <span>Pick a file. This screen becomes the transmitter.</span>
+      <b>Transmit</b>
+      <span>Screen becomes the source</span>
+      <span class="card-go" aria-hidden="true">&gt;&gt;&gt;</span>
     </a>
     <a class="card" href="receive.html">
       <b>Receive</b>
-      <span>Point this camera at the other screen.</span>
+      <span>Camera resolves the stream</span>
+      <span class="card-go" aria-hidden="true">&gt;&gt;&gt;</span>
     </a>
   </nav>
 
   <section class="panel">
-    <p class="sub">Each cell of the grid is one of eight colours, so it carries three bits where a black-and-white code carries one.</p>
-    <p class="sub">Every frame is an independent combination of the file's blocks, so the receiver needs <em>enough</em> frames rather than <em>particular</em> ones. There is nothing to retransmit and nothing to ask for — a camera pointed at a screen has no way to reply.</p>
-    <p class="sub">The file is cut into windows, written out one at a time, so memory does not grow with file size. The sender loops; a window you missed comes back round.</p>
+    <dl class="spec">
+      <div><dt>Link</dt><dd>Screen &rarr; camera, simplex. No back channel, no pairing.</dd></div>
+      <div><dt>Cell</dt><dd><b>3 bit</b> &middot; 8 colours, one bit per channel</dd></div>
+      <div><dt>Frame</dt><dd><b>7.6 KB</b> payload at 160&sup2; cells, four corner markers</dd></div>
+      <div><dt>Coding</dt><dd>RS(255,223) inner &middot; LT fountain outer, windowed</dd></div>
+      <div><dt>Rate</dt><dd><b>457 KB/s</b> handheld at 60 fps &middot; 889 KB/s propped</dd></div>
+      <div><dt>Memory</dt><dd>Bounded by window size, not file size</dd></div>
+      <div><dt>Verify</dt><dd>SHA-256 over the reassembled file</dd></div>
+    </dl>
   </section>
 </main>
 <script type="module" src="/src/ui/index-page.ts"></script>

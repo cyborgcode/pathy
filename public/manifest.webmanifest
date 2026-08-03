@@ -1,14 +1,14 @@
 {
   "name": "Photon \u2014 file transfer over light",
   "short_name": "Photon",
-  "description": "Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.",
+  "description": "Optical file transport. Screen to camera, one way, no network path between the devices.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#fbfbfa",
-  "theme_color": "#fbfbfa",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "categories": [
     "utilities",
     "productivity"

@@ -159,23 +159,29 @@ base path still produces a perfectly valid bundle.
 
 ## Interface
 
-Warm monochrome, hairline rules instead of boxes, and type doing the work a
-border would otherwise do. Colour is spent only where something has a state to
-report, for a reason beyond taste: the one element that should be shouting in
-colour is the code itself, and interface chrome competes with the thing the
-other device's camera is trying to read.
+An instrument panel for an optical link, built like one: monospace throughout,
+terse field labels over fixed-width figures, compartments ruled off by
+hairlines, right angles only. The index carries a spec sheet rather than
+paragraphs describing the same facts in sentences.
 
-The display face is a serif, the body a geometric sans, and every figure is
-monospaced with tabular numerals so the readouts do not reflow as they tick.
-All three are system stacks — no webfont, because a blocking download is the
-last thing an offline-first app should ask for on a cold install.
+Dark is the operating condition rather than a preference. The sender's screen
+is a light source aimed at the other device's camera, and every bright pixel
+of interface chrome is stray light in that camera's exposure metering — a dark
+panel lets the code's own contrast dominate the frame. There is deliberately
+no light variant.
 
-Both themes ship. A transfer often happens in a dim room, so the light canvas
-inverts through `prefers-color-scheme` rather than glaring.
+Colour is down to two accents with one job each: aviation red for hazard and
+focus, terminal green only for a transfer that completed and verified. Type is
+system-stacked; a blocking webfont is the last thing an offline-first app
+should ask for on a cold install.
+
+The CRT scanline layer is held strictly below the transmit stage in the
+stacking order. An overlay across the code canvas would be modulating the very
+signal the receiving camera is trying to read.
 
 Built following [taste-skill](https://github.com/Leonxlnx/taste-skill)'s
-`minimalist-ui`, with the mobile pass before it following the same repo's
-`redesign-existing-projects`.
+`industrial-brutalist-ui`, with the mobile pass before it following the same
+repo's `redesign-existing-projects`.
 
 ## Mobile
 

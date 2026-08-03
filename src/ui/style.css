@@ -1,39 +1,39 @@
 /**
- * Warm monochrome, editorial, ultra-flat.
+ * Tactical telemetry. Dark substrate, monospace dominant, right angles only.
  *
- * Colour is treated as a scarce resource here for a reason beyond taste: the
- * only thing on screen that should be shouting in colour is the code itself.
- * A chrome-heavy interface competes with the one element the other device's
- * camera is trying to read.
+ * The interface is an instrument panel for an optical link, so it is built
+ * like one: fixed-width figures, terse field labels, visible compartments
+ * ruled off by hairlines, and no decoration that is not carrying information.
  *
- * Type carries the hierarchy instead — a serif display face against a
- * geometric sans, with monospace for anything numeric. All three are system
- * stacks. The design language asks for SF Pro Display and SF Mono by name,
- * and those are already on the device, so the editorial contrast costs no
- * download. That matters: this is an offline-first app, and a blocking
- * webfont would be paid for on every cold install.
+ * Dark is not a preference here, it is the operating condition. The sender's
+ * screen is a light source pointed at the other device's camera, and every
+ * bright pixel of interface chrome is stray light in that camera's exposure
+ * metering. A dark panel lets the code's own contrast dominate the frame.
+ * There is deliberately no light variant: one substrate, committed to.
+ *
+ * Type is system-stacked throughout. A blocking webfont download is the last
+ * thing an offline-first app should ask for on a cold install.
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Warm monochrome canvas. */
-  --bg: #fbfbfa;
-  --surface: #ffffff;
-  --line: rgba(24, 24, 20, 0.09);
-  --line-strong: rgba(24, 24, 20, 0.16);
-  --ink: #1a1a18;
-  --ink-2: #6f6e6a;
-  --ink-3: #96948d;
+  /* Deactivated CRT, not pure black. */
+  --bg: #0a0a0a;
+  --panel: #101010;
+  --raise: #161616;
+  --line: #262626;
+  --line-2: #3a3a3a;
 
-  /* Spot pastels, used only where something has a state to report. */
-  --good-bg: #edf3ec;
-  --good-ink: #346538;
-  --bad-bg: #fdebec;
-  --bad-ink: #9f2f2d;
+  /* White phosphor. */
+  --fg: #eaeaea;
+  --fg-2: #8f8f8f;
+  --fg-3: #5e5e5e;
 
-  --radius: 8px;
-  --radius-sm: 6px;
+  /* Aviation red is the only accent. */
+  --hazard: #e61919;
+  /* Terminal green earns exactly one job: a completed, verified transfer. */
+  --confirm: #4af626;
 
   --tap: 44px;
 
@@ -42,117 +42,132 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
 
-  --z-stage: 50;
+  --z-scan: 1;
+  --z-stage: 60;
 
-  --sans: -apple-system, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
-  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-}
-
-/* The transfer itself is often done in a dim room, so the light canvas
-   inverts rather than glaring. Same design, same hierarchy, different ink. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121211;
-    --surface: #191917;
-    --line: rgba(255, 255, 255, 0.10);
-    --line-strong: rgba(255, 255, 255, 0.18);
-    --ink: #ecebe6;
-    --ink-2: #9c998f;
-    --ink-3: #74716a;
-    --good-bg: rgba(52, 101, 56, 0.18);
-    --good-ink: #8fc294;
-    --bad-bg: rgba(159, 47, 45, 0.18);
-    --bad-ink: #e8908d;
-  }
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Helvetica Neue", Helvetica, system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 /* The UA rule for [hidden] is display:none, which any class setting a display
-   value outranks. Several elements here are toggled by the hidden attribute
-   while also carrying .row or #stage's grid, so it needs to win outright. */
+   value outranks. Several elements here are toggled by the attribute while
+   also carrying a grid or flex display, so it has to win outright. */
 [hidden] { display: none !important; }
 
-html {
-  /* A pull-to-refresh mid-transfer reloads the tab and discards everything
-     decoded so far. */
-  overscroll-behavior-y: none;
-}
+html { overscroll-behavior-y: none; }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 16px;
-  line-height: 1.6;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   min-height: 100svh;
 }
 
-a { color: var(--ink); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-a:hover { text-decoration-color: currentColor; }
+/*
+ * Scanlines.
+ *
+ * Held strictly below the transmit stage in the stacking order. An overlay
+ * across the code canvas would be modulating the very signal the receiving
+ * camera is trying to read — the pattern is cosmetic on a page and corrupting
+ * on a transmitter.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scan);
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    rgba(255, 255, 255, 0.022) 2px 3px
+  );
+}
 
-/* Narrow measure. Long lines are the fastest way to make a simple page feel
-   like a dense one. */
+a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-2);
+}
+a:hover { border-bottom-color: var(--hazard); color: var(--hazard); }
+
 .wrap {
-  max-width: 680px;
+  max-width: 720px;
   margin: 0 auto;
   padding:
-    calc(56px + var(--safe-t))
-    calc(24px + var(--safe-r))
-    calc(96px + var(--safe-b))
-    calc(24px + var(--safe-l));
+    calc(28px + var(--safe-t))
+    calc(20px + var(--safe-r))
+    calc(80px + var(--safe-b))
+    calc(20px + var(--safe-l));
 }
 
-header { margin-bottom: 48px; }
+/* Macro type: heavy, uppercase, tight enough to read as a solid block. */
+header { margin-bottom: 30px; }
 
 h1 {
-  font-family: var(--serif);
-  font-size: clamp(32px, 8vw, 44px);
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.05;
-  margin: 0 0 12px;
-  text-wrap: balance;
+  font-family: var(--sans);
+  font-size: clamp(44px, 15vw, 84px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  margin: 0;
 }
+
+/* Strapline: unit designation, not a sentence. */
+.ident {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-3);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.ident b { color: var(--fg-2); font-weight: 400; }
 
 .sub {
-  color: var(--ink-2);
-  font-size: 15px;
+  color: var(--fg-2);
+  font-size: 12px;
+  letter-spacing: 0.04em;
   margin: 0;
-  text-wrap: pretty;
-  max-width: 58ch;
+  max-width: 64ch;
 }
-.sub + .sub { margin-top: 10px; }
+.sub + .sub { margin-top: 8px; }
 
-/* Sections are separated by a hairline and whitespace, not by boxes. Stripping
-   the container is most of what makes this read as simple. */
+/* Compartments, ruled off. */
 .panel {
   border-top: 1px solid var(--line);
-  padding: 32px 0 0;
-  margin: 0 0 32px;
+  padding-top: 18px;
+  margin: 0 0 26px;
 }
-.panel:first-of-type { border-top: 0; padding-top: 0; }
 
 .row {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
+.row + .row { margin-top: 10px; }
 
 label {
-  color: var(--ink-2);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  color: var(--fg-3);
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-weight: 500;
 }
 
 label:has(input[type="checkbox"]) {
@@ -161,183 +176,216 @@ label:has(input[type="checkbox"]) {
   gap: 10px;
   min-height: var(--tap);
   cursor: pointer;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 15px;
-  color: var(--ink);
+  color: var(--fg-2);
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--ink);
+  width: 16px;
+  height: 16px;
+  accent-color: var(--hazard);
   flex: none;
 }
 
+/* No radius anywhere. Right angles are the point. */
 button {
-  background: var(--ink);
+  background: var(--fg);
   color: var(--bg);
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-sm);
-  padding: 11px 20px;
+  border: 1px solid var(--fg);
+  border-radius: 0;
+  padding: 12px 22px;
   min-height: var(--tap);
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-  transition: opacity 200ms ease, transform 140ms ease, background-color 200ms ease;
+  transition: background-color 120ms linear, color 120ms linear, border-color 120ms linear;
 }
 button.secondary {
   background: transparent;
-  color: var(--ink);
-  border-color: var(--line-strong);
+  color: var(--fg-2);
+  border-color: var(--line-2);
 }
 
 @media (hover: hover) {
-  button:hover:not(:disabled) { opacity: 0.82; }
-  button.secondary:hover:not(:disabled) { opacity: 1; border-color: var(--ink); }
+  button:hover:not(:disabled) { background: var(--hazard); border-color: var(--hazard); color: var(--fg); }
+  button.secondary:hover:not(:disabled) { color: var(--fg); border-color: var(--fg); background: transparent; }
 }
-button:active:not(:disabled) { transform: scale(0.98); }
-button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.3; cursor: not-allowed; }
 
 select,
 input[type="number"],
 input[type="file"],
 textarea {
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
+  padding: 11px 12px;
   min-height: var(--tap);
-  font-family: inherit;
+  font-family: var(--mono);
   /* 16px exactly. Safari zooms the viewport in on a focused field under 16px
      and never zooms back out. */
   font-size: 16px;
+  letter-spacing: 0.02em;
   width: 100%;
   max-width: 100%;
 }
+select:focus, input:focus, textarea:focus { border-color: var(--fg-2); outline: none; }
 textarea { min-height: 80px; resize: vertical; }
 
 :where(button, select, input, textarea, a, summary):focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline: 2px solid var(--hazard);
+  outline-offset: 1px;
 }
 
-/* Settings sit behind a bare disclosure with a drawn +/- rather than a
-   default triangle. */
-details { border-top: 1px solid var(--line); margin-top: 28px; }
+details { border-top: 1px solid var(--line); margin-top: 22px; }
 details summary {
   cursor: pointer;
-  color: var(--ink-2);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  color: var(--fg-3);
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-weight: 500;
   min-height: var(--tap);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   list-style: none;
   touch-action: manipulation;
 }
 details summary::-webkit-details-marker { display: none; }
-details summary::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  flex: none;
-  background:
-    linear-gradient(var(--ink-2), var(--ink-2)) center/9px 1px no-repeat,
-    linear-gradient(var(--ink-2), var(--ink-2)) center/1px 9px no-repeat;
-  transition: transform 200ms ease;
-}
-details[open] summary::before {
-  /* The vertical stroke rotates out, leaving a minus. */
-  background: linear-gradient(var(--ink-2), var(--ink-2)) center/9px 1px no-repeat;
-}
-details[open] summary { margin-bottom: 20px; }
+/* Bracketed, the way a field label on a panel would be. */
+details summary::before { content: "[+]"; color: var(--hazard); }
+details[open] summary::before { content: "[-]"; }
+details[open] summary { margin-bottom: 16px; }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 14px;
 }
 @media (min-width: 480px) {
-  .grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 }
-.field { display: flex; flex-direction: column; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 7px; }
 
-/* Numbers are the content on these pages, so they get the monospace face and
-   room to breathe. */
+/*
+ * Telemetry block.
+ *
+ * A 1px gap over a light-coloured parent draws razor-thin rules between every
+ * cell without a border declaration anywhere, and without doubling up where
+ * cells meet.
+ */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 22px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  /* Rules are drawn by the cells, not by a coloured gap behind them. The gap
+     technique is tidier until the readout count does not divide evenly by the
+     column count, at which point the leftover space keeps painting the rule
+     colour and reads as a broken compartment. Borders on the cells themselves
+     simply stop where the cells stop. */
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
 }
-.stat .k {
-  color: var(--ink-3);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 500;
+.stat {
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 12px 13px;
+  min-width: 0;
 }
-/* Filenames get the full row. In a narrow column the monospace face breaks
-   them mid-word and drags every other stat out of line. */
 .stat--wide { grid-column: 1 / -1; }
-.stat--wide .v { font-size: 15px; }
 
+.stat .k {
+  color: var(--fg-3);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
 .stat .v {
+  display: block;
   font-family: var(--mono);
-  font-size: 19px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  margin-top: 4px;
+  margin-top: 5px;
   overflow-wrap: anywhere;
 }
+.stat--wide .v { font-size: 13px; letter-spacing: 0.02em; }
 
-/* Controls need air after a block of figures, and prose needs air after
-   controls. */
-.stats + .row { margin-top: 28px; }
-.row + .sub { margin-top: 16px; }
+.stats + .row { margin-top: 16px; }
+.row + .sub { margin-top: 14px; }
+
+/* Spec sheet: definition list, ruled like a manual. */
+.spec {
+  margin: 0;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+.spec > div {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.spec dt {
+  color: var(--fg-3);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.spec dd {
+  margin: 0;
+  color: var(--fg-2);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+.spec dd b { color: var(--fg); font-weight: 500; }
 
 .bar {
-  height: 2px;
+  height: 3px;
   background: var(--line);
   overflow: hidden;
-  margin: 28px 0 0;
+  margin: 18px 0 0;
 }
 .bar > i {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--ink);
+  background: var(--hazard);
   transition: width 0.2s linear;
 }
 
+/* Transmit stage. Sits above the scanline layer, always. */
 #stage {
+  position: relative;
+  z-index: 2;
   display: grid;
   place-items: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
   overflow: hidden;
-  margin-top: 28px;
+  margin-top: 20px;
+  padding: 10px;
 }
 #stage.fullscreen {
   position: fixed;
   inset: 0;
-  border: 0;
-  border-radius: 0;
   z-index: var(--z-stage);
-  /* Deliberately ignores the safe-area insets: the receiver needs every pixel
-     it can get, and the code carries its own quiet zone. */
-  background: #fff;
+  border: 0;
+  padding: 0;
   margin: 0;
+  /* White field: the code carries its own quiet zone and the receiver wants
+     every pixel of it. */
+  background: #fff;
 }
 
 canvas#code {
@@ -351,99 +399,94 @@ canvas#code {
 
 video {
   width: 100%;
-  max-height: 56dvh;
+  max-height: 54dvh;
   background: #000;
-  border-radius: var(--radius);
+  border: 1px solid var(--line-2);
+  border-radius: 0;
   object-fit: contain;
   display: block;
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
+/* Status line, prefixed like terminal output. */
 .msg {
   font-family: var(--mono);
-  font-size: 13px;
-  color: var(--ink-2);
-  margin-top: 16px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fg-2);
+  margin-top: 14px;
   min-height: 1.5em;
   overflow-wrap: anywhere;
 }
-/* State is the one place colour is spent, and only as a washed pastel. */
-.msg.bad,
-.msg.good {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  margin-top: 14px;
-}
-.msg.good { background: var(--good-bg); color: var(--good-ink); }
-.msg.bad { background: var(--bad-bg); color: var(--bad-ink); }
+.msg:not(:empty)::before { content: "> "; color: var(--fg-3); }
+.msg.bad { color: var(--hazard); }
+.msg.bad::before { content: "!! "; color: var(--hazard); }
+.msg.good { color: var(--confirm); }
+.msg.good::before { content: "OK "; color: var(--confirm); }
 
-code, .mono { font-family: var(--mono); font-size: 13px; }
+code, .mono { font-family: var(--mono); font-size: 11px; }
 
-/* The landing page's two routes: hairline rows, not boxes. */
+/* Route selection: two compartments, hairline-ruled. */
 .cards {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 26px;
 }
 .card {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  text-decoration: none;
-  color: inherit;
-  border-bottom: 1px solid var(--line);
-  padding: 26px 4px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel);
+  color: var(--fg);
+  border: 0;
+  padding: 20px 16px;
   min-height: var(--tap);
+  text-decoration: none;
   touch-action: manipulation;
-  transition: padding-left 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms ease;
+  transition: background-color 120ms linear;
 }
+.card:hover { border-bottom: 0; }
 @media (hover: hover) {
-  .card:hover { padding-left: 12px; background: var(--surface); }
+  .card:hover { background: var(--raise); color: var(--fg); }
+  .card:hover .card-go { color: var(--hazard); }
 }
-.card:active { background: var(--surface); }
+.card:active { background: var(--raise); }
 .card b {
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  flex: none;
-  min-width: 108px;
+  font-family: var(--sans);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
 }
-.card span { color: var(--ink-2); font-size: 14px; }
+.card span {
+  color: var(--fg-3);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.card-go { color: var(--fg-3); font-size: 13px; letter-spacing: 0.1em; }
 
-@media (max-width: 460px) {
-  .card { flex-direction: column; gap: 4px; }
-  .card b { min-width: 0; }
+@media (max-width: 420px) {
+  .card { grid-template-columns: 1fr auto; row-gap: 6px; }
+  .card span:not(.card-go) { grid-column: 1 / -1; }
+  /* Column pinned as well as row: explicitly-placed items are positioned
+     before auto-placed ones, so a row-only rule let the marker claim column 1
+     and pushed the title across. */
+  .card-go { grid-row: 1; grid-column: 2; text-align: right; }
 }
 
-/* On a phone a stranded auto-width button next to a full-width field reads as
-   an afterthought. Let them share the row instead. */
 @media (max-width: 560px) {
   .row > button { flex: 1 1 auto; }
 }
 
-/* Landscape phones have almost no vertical room. */
 @media (max-height: 480px) and (orientation: landscape) {
-  .wrap { padding-top: calc(20px + var(--safe-t)); padding-bottom: calc(32px + var(--safe-b)); }
-  header { margin-bottom: 24px; }
-  video { max-height: 48dvh; }
-}
-
-/* Quiet entrance. Present, not a performance — and only on first paint, since
-   these pages do not scroll far enough to justify observers. */
-@media (prefers-reduced-motion: no-preference) {
-  .wrap > * {
-    animation: rise 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  }
-  .wrap > *:nth-child(2) { animation-delay: 60ms; }
-  .wrap > *:nth-child(3) { animation-delay: 120ms; }
-  .wrap > *:nth-child(4) { animation-delay: 180ms; }
-}
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+  .wrap { padding-top: calc(14px + var(--safe-t)); padding-bottom: calc(28px + var(--safe-b)); }
+  header { margin-bottom: 18px; }
+  video { max-height: 46dvh; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,10 +4,9 @@
 <meta charset="utf-8">
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Point this camera at a sending screen to rebuild the file from light alone.">
-<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
-<meta name="color-scheme" content="light dark">
+<meta name="description" content="Receive: frames are resolved from the camera and reassembled.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,18 +15,21 @@
 <!-- black-translucent puts the page under the status bar, which is what
      viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta property="og:title" content="Photon — receive">
-<meta property="og:description" content="Point this camera at a sending screen to rebuild the file from light alone.">
+<meta property="og:title" content="Photon &mdash; receive">
+<meta property="og:description" content="Receive: frames are resolved from the camera and reassembled.">
 <meta property="og:type" content="website">
-<title>Photon — receive</title>
+<title>Photon &mdash; receive</title>
 <link rel="stylesheet" href="/src/ui/style.css">
 </head>
 <body>
 <main class="wrap">
   <header>
     <h1>Receive</h1>
-    <p class="sub"><a href="./">Back</a></p>
-    <p class="sub">Point the camera at the sending screen. Fill the view with it and hold steady.</p>
+    <p class="ident">
+      <span><b>Mode</b> RX</span>
+      <span><b>Sink</b> memory</span>
+      <span><a href="./">Index</a></span>
+    </p>
   </header>
 
   <section class="panel">
@@ -36,19 +38,19 @@
       <button id="stop" class="secondary" disabled>Stop</button>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="todisk"> Stream straight to disk, for large files</label>
+      <label><input type="checkbox" id="todisk"> Sink to disk</label>
     </div>
     <div class="msg" id="msg"></div>
 
     <details>
-      <summary>Settings</summary>
+      <summary>Parameters</summary>
       <div class="grid">
         <div class="field">
-          <label for="res">Capture resolution</label>
+          <label for="res">Capture</label>
           <select id="res">
-            <option value="1920">1920 &mdash; best density</option>
+            <option value="1920">1920 &middot; max density</option>
             <option value="1600" selected>1600</option>
-            <option value="1280">1280 &mdash; fastest</option>
+            <option value="1280">1280 &middot; fastest</option>
           </select>
         </div>
         <div class="field">
@@ -63,11 +65,11 @@
 
   <section class="panel">
     <div class="stats">
-      <div class="stat stat--wide"><div class="k">File</div><div class="v" id="r-name">&mdash;</div></div>
-      <div class="stat"><div class="k">Received</div><div class="v" id="r-done">&mdash;</div></div>
-      <div class="stat"><div class="k">Rate</div><div class="v" id="r-rate">&mdash;</div></div>
-      <div class="stat"><div class="k">Frames</div><div class="v" id="r-fps">&mdash;</div></div>
-      <div class="stat"><div class="k">Decoded</div><div class="v" id="r-hit">&mdash;</div></div>
+      <div class="stat stat--wide"><span class="k">Payload</span><output class="v" id="r-name">&mdash;</output></div>
+      <div class="stat"><span class="k">Resolved</span><output class="v" id="r-done">&mdash;</output></div>
+      <div class="stat"><span class="k">RX rate</span><output class="v" id="r-rate">&mdash;</output></div>
+      <div class="stat"><span class="k">Frames</span><output class="v" id="r-fps">&mdash;</output></div>
+      <div class="stat"><span class="k">Lock</span><output class="v" id="r-hit">&mdash;</output></div>
     </div>
     <div class="bar"><i id="r-bar"></i></div>
     <div class="msg" id="r-msg"></div>
