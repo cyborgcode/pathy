@@ -113,6 +113,13 @@ origins, so running locally means an HTTPS dev server and a certificate
 exception on the receiving device — a lot of ceremony for a transfer that
 never touches the network. Pages serves HTTPS, so that all goes away.
 
+**Install it.** It is a PWA: add it to the home screen on either device and it
+opens standalone, with its own icon and no browser chrome. More to the point,
+it works with the network off. An app whose whole premise is moving files
+between devices that cannot reach each other, but which needs a connection to
+load the page that does it, would be missing the plot — so the service worker
+precaches the shell and both devices can be in airplane mode from then on.
+
 Locally:
 
 ```bash
@@ -124,7 +131,7 @@ npm run dev          # https dev server, --host so a phone on the LAN can reach 
 npm test             # unit + end-to-end transfer tests
 npm run bench        # throughput across profiles and conditions
 npm run e2e          # headless Chromium: real MediaStream, real workers
-npm run smoke        # loads the built site under a base path, as Pages serves it
+npm run smoke        # base path, mobile viewports, PWA assets, offline load
 npm run build        # typecheck + production bundle
 ```
 
@@ -149,6 +156,44 @@ until someone clicks: assets need the `/<repo>/` prefix, and inter-page links
 must be relative or they escape it. `npm run smoke` serves the build under a
 subdirectory and loads every page in Chromium to check exactly that — a wrong
 base path still produces a perfectly valid bundle.
+
+## Mobile
+
+Both devices in a transfer are usually phones, so the phone case is the main
+case rather than an afterthought. The layout pass followed the audit in
+[taste-skill](https://github.com/Leonxlnx/taste-skill)'s `redesign-existing-projects`.
+
+What actually bites on a phone, and what was done about it:
+
+- **`100vh` is wrong on iOS.** Safari resolves it against the tallest possible
+  viewport, so the bottom of the code sat under the toolbars until you
+  scrolled. Now `dvh`, which tracks the toolbars as they collapse. The sender
+  canvas also sizes itself from `visualViewport` rather than `innerHeight`,
+  for the same reason, and re-lays out on rotate.
+- **Safe areas.** The pages ship `viewport-fit=cover` to reach edge-to-edge,
+  which puts content under the notch and the home indicator unless it is
+  padded back out with `env(safe-area-inset-*)`.
+- **Safari zooms in on focused inputs under 16px and never zooms back out.**
+  Every field is 16px exactly, not inherited.
+- **Tap targets.** Everything touchable is at least 44px, with pressed-state
+  feedback — on a phone there is no hover to preview an action with.
+- **Pull-to-refresh mid-transfer** reloads the tab and discards everything
+  decoded so far. `overscroll-behavior-y: none`.
+- **Screen dimming.** Neither device is touched while a transfer runs, which
+  is exactly what a phone reads as idle. Both pages hold a screen wake lock,
+  and re-acquire it on becoming visible again, because the lock is dropped
+  whenever the page is hidden.
+
+`npm run smoke` checks the measurable parts across five viewports — no
+horizontal overflow, tap target sizes, input font sizes, the head tags, the
+manifest and icons, and an offline load with the network cut. It is Chromium
+emulating phone viewports, so it catches layout regressions but is not a
+substitute for real Safari, and it cannot verify the safe-area insets.
+
+One deliberate departure from the skill's advice: it opens with "swap the
+font" as the highest-impact change. Not here. A webfont is a blocking download
+that the offline-first goal has to pay for on every cold install, for a
+utility whose screen time is mostly a colour grid. System fonts stay.
 
 ## How a frame is put together
 
@@ -204,6 +249,9 @@ src/core/      physical + coding layers, no DOM — all of it runs under Node
   session.ts   window scheduling, manifests, sinks
 src/sender/    sender page
 src/receiver/  receiver page + decode worker
+src/ui/        stylesheet, service worker registration, screen wake lock
+public/        manifest, service worker, generated icons
+tools/         icon generator
 bench/         channel simulation and throughput benchmark
 tests/         unit, transfer, and headless browser tests
 ```

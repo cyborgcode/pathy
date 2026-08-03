@@ -14,6 +14,7 @@ import { SenderSession, type SourceReader, chooseWindowBytes } from '../core/ses
 import { renderFrame, type RgbaImage } from '../core/render.js';
 import { PROFILES, profileById, geometryFor, DEFAULT_PROFILE_ID } from '../core/profile.js';
 import { Sha256 } from '../core/sha256.js';
+import { registerServiceWorker, ScreenWakeLock } from '../ui/pwa.js';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -73,6 +74,12 @@ function fmtBytes(n: number): string {
 let running = false;
 let session: SenderSession | null = null;
 let raf = 0;
+/** Re-run the canvas layout, e.g. after entering fullscreen. */
+let relayout: (() => void) | null = null;
+
+const wakeLock = new ScreenWakeLock();
+
+registerServiceWorker();
 
 fileInput.addEventListener('change', () => {
   const f = fileInput.files?.[0];
@@ -85,8 +92,14 @@ startBtn.addEventListener('click', () => void start());
 stopBtn.addEventListener('click', stop);
 fullBtn.addEventListener('click', () => {
   stage.classList.toggle('fullscreen');
-  if (stage.classList.contains('fullscreen')) void stage.requestFullscreen?.().catch(() => {});
+  const full = stage.classList.contains('fullscreen');
+  // iOS Safari has no Fullscreen API on iPhone, so the CSS class is what
+  // actually delivers fullscreen there; requestFullscreen is a bonus where it
+  // exists. Either way the canvas has to be resized to the new area.
+  if (full) void stage.requestFullscreen?.().catch(() => {});
   else void document.exitFullscreen?.().catch(() => {});
+  fullBtn.textContent = full ? 'Exit fullscreen' : 'Fullscreen';
+  window.setTimeout(() => relayout?.(), 120);
 });
 
 async function start(): Promise<void> {
@@ -117,12 +130,16 @@ async function start(): Promise<void> {
   $('s-name').textContent = `${file.name} · ${fmtBytes(file.size)}`;
 
   running = true;
+  // Nobody touches either device while a transfer runs, which is precisely
+  // when a phone decides to dim. A dark sender screen stalls the link.
+  void wakeLock.acquire();
   void runLoop(profile);
 }
 
 function stop(): void {
   running = false;
   cancelAnimationFrame(raf);
+  void wakeLock.release();
   session = null;
   setup.hidden = false;
   live.hidden = true;
@@ -134,19 +151,54 @@ function stop(): void {
 async function runLoop(profile: ReturnType<typeof profileById>): Promise<void> {
   const ctx = canvas.getContext('2d', { alpha: false })!;
 
-  // Render at device pixels: a cell that lands between two physical pixels is
-  // a cell the camera sees as a blend of two colours.
-  const dpr = window.devicePixelRatio || 1;
-  const cssSide = Math.min(window.innerWidth, window.innerHeight * 0.92);
-  const side = Math.max(profile.cells * 3, Math.min(2048, Math.round(cssSide * dpr)));
+  let side = 0;
+  let imageData!: ImageData;
+  let frameBuf!: RgbaImage;
 
-  canvas.width = side;
-  canvas.height = side;
-  canvas.style.width = `${Math.round(side / dpr)}px`;
-  canvas.style.height = `${Math.round(side / dpr)}px`;
+  /**
+   * Size the canvas to the screen.
+   *
+   * Rendered at device pixels, because a cell landing between two physical
+   * pixels is a cell the camera sees as a blend of two colours. The viewport
+   * height comes from `visualViewport` where available: on iOS Safari
+   * `innerHeight` reports the layout viewport, which stays at its full value
+   * while the toolbars are actually covering part of the screen, so the bottom
+   * of the code would be rendered underneath them.
+   */
+  const layout = (): void => {
+    const dpr = window.devicePixelRatio || 1;
+    const vw = window.visualViewport?.width ?? window.innerWidth;
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const full = stage.classList.contains('fullscreen');
+    const cssSide = Math.min(vw, full ? vh : vh * 0.92);
+    const next = Math.max(profile.cells * 3, Math.min(2048, Math.round(cssSide * dpr)));
+    if (next === side) return;
 
-  const imageData = ctx.createImageData(side, side);
-  const frameBuf: RgbaImage = { width: side, height: side, data: imageData.data };
+    side = next;
+    canvas.width = side;
+    canvas.height = side;
+    canvas.style.width = `${Math.round(side / dpr)}px`;
+    canvas.style.height = `${Math.round(side / dpr)}px`;
+    imageData = ctx.createImageData(side, side);
+    frameBuf = { width: side, height: side, data: imageData.data };
+  };
+
+  layout();
+
+  // Rotating the phone, or the toolbars collapsing as the page settles, both
+  // change the usable area. Debounced so a drag-resize does not reallocate a
+  // multi-megabyte buffer every frame.
+  let resizeTimer = 0;
+  const onResize = (): void => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      if (running) layout();
+    }, 150);
+  };
+  window.addEventListener('resize', onResize);
+  window.visualViewport?.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+  relayout = layout;
 
   // Two frames deep: enough to hide a window read, not so deep that a settings
   // change takes visible effect late.

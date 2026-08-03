@@ -2,15 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Turn this screen into a transmitter: the file is painted as a stream of colour grids for another device's camera to read.">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Photon">
+<!-- black-translucent puts the page under the status bar, which is what
+     viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="Photon — send">
+<meta property="og:description" content="Turn this screen into a transmitter: the file is painted as a stream of colour grids for another device's camera to read.">
+<meta property="og:type" content="website">
 <title>Photon — send</title>
 <link rel="stylesheet" href="/src/ui/style.css">
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
+  <header>
   <h1>Send</h1>
   <p class="sub"><a href="./">← back</a> · Pick a file, press start, and point the other device's camera at this screen.</p>
+  </header>
 
   <div class="panel" id="setup">
     <div class="row">
@@ -55,7 +71,7 @@
   </div>
 
   <div id="stage"><canvas id="code"></canvas></div>
-</div>
+</main>
 <script type="module" src="/src/sender/main.ts"></script>
 </body>
 </html>

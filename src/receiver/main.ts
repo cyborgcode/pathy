@@ -14,6 +14,7 @@
 import { ReceiverSession, type WindowSink, MemorySink } from '../core/session.js';
 import { Sha256, bytesEqual, toHex } from '../core/sha256.js';
 import type { DecodeResponse } from './decode-worker.js';
+import { registerServiceWorker, ScreenWakeLock } from '../ui/pwa.js';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -55,6 +56,10 @@ let memorySink: MemorySink | null = null;
 let diskHandle: FileSystemFileHandle | null = null;
 let receivedName = 'received.bin';
 let receivedMime = 'application/octet-stream';
+
+const wakeLock = new ScreenWakeLock();
+
+registerServiceWorker();
 
 let framesSeen = 0;
 let framesOk = 0;
@@ -170,6 +175,9 @@ async function start(): Promise<void> {
 
   running = true;
   generation++;
+  // The receiver is held still and untouched while filming, which is exactly
+  // when the screen would otherwise dim and then lock.
+  void wakeLock.acquire();
   stopBtn.disabled = false;
   msg.textContent = `Camera running at ${video.videoWidth}x${video.videoHeight}.`;
 
@@ -179,6 +187,7 @@ async function start(): Promise<void> {
 async function stop(): Promise<void> {
   running = false;
   generation++;
+  void wakeLock.release();
   stopBtn.disabled = true;
   startBtn.disabled = false;
 
@@ -285,6 +294,7 @@ function updateStats(): void {
 async function finish(): Promise<void> {
   running = false;
   generation++;
+  void wakeLock.release();
   for (const w of workers) w.terminate();
   workers = [];
   stream?.getTracks().forEach((t) => t.stop());

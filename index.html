@@ -2,15 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/png" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Photon">
+<!-- black-translucent puts the page under the status bar, which is what
+     viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="Photon — file transfer over light">
+<meta property="og:description" content="Send a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.">
+<meta property="og:type" content="website">
 <title>Photon — file transfer over light</title>
 <link rel="stylesheet" href="/src/ui/style.css">
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
+  <header>
   <h1>Photon</h1>
   <p class="sub">Move a file between two devices using nothing but a screen and a camera. No network, no pairing, no app.</p>
+  </header>
 
   <div class="cards">
     <a class="card" href="send.html"><b>Send →</b><span>Pick a file. This screen becomes the transmitter.</span></a>
@@ -23,6 +39,7 @@
     <p class="sub" style="margin:0 0 8px">Every frame is an independent fountain-coded combination of the file's blocks. The receiver needs <em>enough</em> frames, not <em>specific</em> ones, so there is no handshake and nothing to retransmit — which is just as well, because a camera pointed at a screen has no way to ask.</p>
     <p class="sub" style="margin:0">The file is cut into windows that are decoded and written out one at a time, so memory does not grow with file size. The sender loops forever; a window you missed comes back round.</p>
   </div>
-</div>
+</main>
+<script type="module" src="/src/ui/index-page.ts"></script>
 </body>
 </html>

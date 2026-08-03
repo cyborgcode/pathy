@@ -12,7 +12,8 @@
     "test": "vitest run",
     "bench": "tsx bench/run.ts",
     "e2e": "E2E=1 vite build && tsx tests/e2e/browser-loop.ts",
-    "smoke": "BASE_PATH=/pathy/ vite build && tsx tests/e2e/pages-smoke.ts"
+    "smoke": "BASE_PATH=/pathy/ vite build && tsx tests/e2e/pages-smoke.ts",
+    "icons": "node tools/make-icons.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
