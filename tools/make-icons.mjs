@@ -10,7 +10,7 @@
  */
 
 import { deflateSync } from 'node:zlib';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -157,5 +157,42 @@ const files = [
 for (const [name, size, inset] of files) {
   const png = drawIcon(size, inset);
   writeFileSync(join(OUT, name), png);
-  console.log(`${name.padEnd(22)} ${size}x${size}  ${png.length} bytes`);
+  console.log(`${name.padEnd(26)} ${size}x${size}  ${png.length} bytes`);
+}
+
+/*
+ * Android launcher icons, from the same drawing so the app icon and the web
+ * icon never drift apart.
+ *
+ * Adaptive icons are 108dp with only the middle 72dp guaranteed visible — the
+ * launcher is free to mask the rest to a circle, squircle or whatever the
+ * device prefers. The foreground layer therefore gets a much deeper inset
+ * than the legacy square icon, or the corner markers get shaved off.
+ */
+const ANDROID_RES = join(dirname(fileURLToPath(import.meta.url)), '..', 'android', 'app', 'src', 'main', 'res');
+
+const DENSITIES = [
+  ['mdpi', 1],
+  ['hdpi', 1.5],
+  ['xhdpi', 2],
+  ['xxhdpi', 3],
+  ['xxxhdpi', 4],
+];
+
+if (existsSync(ANDROID_RES)) {
+  for (const [density, scale] of DENSITIES) {
+    const dir = join(ANDROID_RES, `mipmap-${density}`);
+    mkdirSync(dir, { recursive: true });
+
+    // Legacy launcher icon: 48dp base.
+    const legacy = drawIcon(Math.round(48 * scale), 0.06);
+    writeFileSync(join(dir, 'ic_launcher.png'), legacy);
+    writeFileSync(join(dir, 'ic_launcher_round.png'), legacy);
+
+    // Adaptive foreground: 108dp base, artwork kept inside the 72dp safe zone.
+    const fg = drawIcon(Math.round(108 * scale), 0.26);
+    writeFileSync(join(dir, 'ic_launcher_foreground.png'), fg);
+
+    console.log(`mipmap-${density}`.padEnd(26) + `${Math.round(48 * scale)}px legacy · ${Math.round(108 * scale)}px foreground`);
+  }
 }

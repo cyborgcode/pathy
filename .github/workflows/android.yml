@@ -1,0 +1,99 @@
+name: Build Android APK
+
+# The APK is built here rather than committed. GitHub's Linux runners ship the
+# Android SDK, which is the part that cannot be obtained everywhere — the
+# build needs android.jar, aapt2, d8 and apksigner, none of which come from
+# npm or Maven.
+#
+# Output goes two places: a workflow artifact for anyone browsing the run, and
+# a rolling `android-latest` release so there is a stable URL to download from
+# a phone. Installing it needs "install unknown apps" enabled, since a debug
+# APK is signed with the standard debug key rather than a store key.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - claude/faster-transfer-higher-volume-bftc0e
+    paths:
+      - 'src/**'
+      - 'android/**'
+      - 'public/**'
+      - '*.html'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      # No BASE_PATH here, deliberately. The Pages build serves from /<repo>/,
+      # but these assets are loaded from the APK's own root, so a base path
+      # would make every script tag a 404 inside the app.
+      - name: Build web assets
+        run: npm run build
+
+      - name: Copy assets into the Android project
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Describe the APK
+        id: apk
+        run: |
+          set -euo pipefail
+          APK=$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          ls -lh "$APK"
+          # Prove it is a real APK rather than an empty archive: it must carry
+          # a manifest and at least one dex.
+          unzip -l "$APK" | grep -E 'AndroidManifest\.xml|classes.*\.dex' | head
+          unzip -l "$APK" | grep -c 'assets/public/' | xargs echo "bundled web files:"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photon-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      - name: Publish rolling release
+        if: github.ref_name == 'main' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch' || startsWith(github.ref_name, 'claude/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cp "${{ steps.apk.outputs.path }}" photon-debug.apk
+          gh release delete android-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create android-latest photon-debug.apk \
+            --title "Photon — Android debug build" \
+            --notes "Debug APK built from ${{ github.sha }}. Sideload it: enable install from unknown sources, then open the file. Signed with the standard Android debug key, so it will not update over a store build." \
+            --prerelease

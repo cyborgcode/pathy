@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the app substrate. The foreground layer is opaque and fills
+         the full 108dp, so this only shows through if a launcher ever renders
+         the layers apart. -->
+    <color name="ic_launcher_background">#0A0A0A</color>
+</resources>

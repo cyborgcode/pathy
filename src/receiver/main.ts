@@ -80,6 +80,14 @@ startBtn.addEventListener('click', () => void start());
 stopBtn.addEventListener('click', () => void stop());
 saveBtn.addEventListener('click', () => void save());
 
+// The File System Access API does not exist in a WebView, so streaming
+// straight to disk cannot work in the Android build. Remove the control
+// rather than leave one that silently falls back to memory.
+if (isNative()) {
+  toDisk.checked = false;
+  toDisk.closest('.row')?.setAttribute('hidden', '');
+}
+
 async function makeSink(size: number): Promise<WindowSink> {
   if (diskHandle) {
     // keepExistingData so out-of-order window writes land at the right offset
@@ -340,9 +348,76 @@ async function finish(): Promise<void> {
   }
 }
 
-function save(): void {
+/** True inside the Android shell, false in a browser. */
+function isNative(): boolean {
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return Boolean(cap?.isNativePlatform?.());
+}
+
+/** Base64 in bounded chunks; `fromCharCode.apply` on a whole file overflows. */
+function toBase64(bytes: Uint8Array): string {
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+/**
+ * Write the received file out.
+ *
+ * On the web this is an anchor with a download attribute. Inside the Android
+ * WebView that does nothing at all — there is no download handler for a
+ * `blob:` URL, so the click is silently swallowed and the file the user just
+ * spent a minute transferring goes nowhere. The native path writes through
+ * the platform instead and reports where it landed.
+ */
+async function save(): Promise<void> {
   if (!memorySink) return;
-  const blob = new Blob([memorySink.bytes as BlobPart], { type: receivedMime });
+  const bytes = memorySink.bytes;
+
+  if (isNative()) {
+    saveBtn.disabled = true;
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const data = toBase64(bytes);
+
+      // Documents is browsable from a file manager, which is what someone
+      // expects of a file they just received. It is not writable on every
+      // Android version, so fall back to the app's own external directory
+      // rather than failing.
+      let uri: string;
+      try {
+        const res = await Filesystem.writeFile({
+          path: receivedName,
+          data,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        uri = res.uri;
+      } catch {
+        const res = await Filesystem.writeFile({
+          path: receivedName,
+          data,
+          directory: Directory.External,
+          recursive: true,
+        });
+        uri = res.uri;
+      }
+
+      rmsg.className = 'msg good';
+      rmsg.textContent = `Written to ${decodeURIComponent(uri.replace('file://', ''))}`;
+    } catch (err) {
+      rmsg.className = 'msg bad';
+      rmsg.textContent = `Write failed: ${err instanceof Error ? err.message : String(err)}`;
+    } finally {
+      saveBtn.disabled = false;
+    }
+    return;
+  }
+
+  const blob = new Blob([bytes as BlobPart], { type: receivedMime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
