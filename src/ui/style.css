@@ -145,15 +145,6 @@ h1 {
 }
 .ident b { color: var(--fg-2); font-weight: 400; }
 
-.sub {
-  color: var(--fg-2);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  margin: 0;
-  max-width: 64ch;
-}
-.sub + .sub { margin-top: 8px; }
-
 /* Compartments, ruled off. */
 .panel {
   border-top: 1px solid var(--line);
@@ -383,7 +374,6 @@ details[open] summary { margin-bottom: 16px; }
 .stat--wide .v { font-size: 13px; letter-spacing: 0.02em; }
 
 .stats + .row { margin-top: 16px; }
-.row + .sub { margin-top: 14px; }
 
 /* Spec sheet: definition list, ruled like a manual. */
 .spec {
@@ -499,7 +489,7 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 }
 .card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 14px;
   background: var(--panel);
@@ -524,22 +514,7 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
   letter-spacing: -0.03em;
   text-transform: uppercase;
 }
-.card span {
-  color: var(--fg-3);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
 .card-go { color: var(--fg-3); font-size: 13px; letter-spacing: 0.1em; }
-
-@media (max-width: 420px) {
-  .card { grid-template-columns: 1fr auto; row-gap: 6px; }
-  .card span:not(.card-go) { grid-column: 1 / -1; }
-  /* Column pinned as well as row: explicitly-placed items are positioned
-     before auto-placed ones, so a row-only rule let the marker claim column 1
-     and pushed the title across. */
-  .card-go { grid-row: 1; grid-column: 2; text-align: right; }
-}
 
 @media (max-width: 560px) {
   .row > button { flex: 1 1 auto; }
