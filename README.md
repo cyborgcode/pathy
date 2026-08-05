@@ -183,6 +183,52 @@ Built following [taste-skill](https://github.com/Leonxlnx/taste-skill)'s
 `industrial-brutalist-ui`, with the mobile pass before it following the same
 repo's `redesign-existing-projects`.
 
+## Android
+
+**→ [Download the APK](https://github.com/cyborgcode/pathy/releases/download/android-latest/photon-debug.apk)**
+
+Sideload it: enable install from unknown sources, then open the file. It is
+signed with the standard Android debug key, so it will not update over a store
+build.
+
+The web build is bundled into the APK rather than pointed at a hosted URL. A
+Trusted Web Activity would have been less code, but it loads the app over the
+network on first launch and needs a verified domain — both absurd for a tool
+whose premise is moving files between devices with no network path between
+them. Bundled assets run on a phone that has never been online.
+
+`androidScheme: 'https'` in `capacitor.config.ts` is load-bearing rather than
+cosmetic. It serves the assets from `https://localhost`, a secure context;
+`getUserMedia` is stripped from insecure origins, so on the default `http`
+scheme the receiver could never open the camera.
+
+Two things a WebView does not do that the web build assumed:
+
+- **Blob downloads.** An anchor with a `download` attribute is silently
+  swallowed — there is no handler for a `blob:` URL — so a received file went
+  nowhere. Saving goes through the Filesystem plugin on native and reports the
+  path it landed at.
+- **The File System Access API does not exist**, so streaming straight to disk
+  cannot work. That control is removed on native rather than left to fall back
+  to memory without saying so. The receiver therefore holds the payload in
+  memory on Android, which is why `largeHeap` is on.
+
+Camera permission needs no native code: Capacitor's `BridgeWebChromeClient`
+maps the WebView's `VIDEO_CAPTURE` request onto the runtime `CAMERA`
+permission. The camera *hardware feature* is marked not required, because a
+device without one can still be the transmitter.
+
+```bash
+npm run build              # no BASE_PATH: assets load from the APK root
+npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+`.github/workflows/android.yml` does this on every push. The APK is built in
+CI rather than committed because it needs `android.jar`, `aapt2`, `d8` and
+`apksigner` — none of which come from npm or Maven — and GitHub's Linux
+runners ship the Android SDK.
+
 ## Mobile
 
 Both devices in a transfer are usually phones, so the phone case is the main
