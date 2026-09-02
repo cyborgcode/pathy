@@ -1,4 +1,4 @@
-# Photon — file transfer over light
+# File transfer over light
 
 Send a file between two devices using nothing but a screen and a camera. One
 page paints the file as an endless run of colour grids; the other points its
