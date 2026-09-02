@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Transmit: the file is rendered as a continuous stream of colour-coded frames.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Photon">
+<!-- black-translucent puts the page under the status bar, which is what
+     viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="Photon &mdash; transmit">
+<meta property="og:description" content="Transmit: the file is rendered as a continuous stream of colour-coded frames.">
+<meta property="og:type" content="website">
+<title>Photon &mdash; transmit</title>
+  <script type="module" crossorigin src="/pathy/assets/send-DsNBepQD.js"></script>
+  <link rel="modulepreload" crossorigin href="/pathy/assets/pwa-ufipXdMk.js">
+  <link rel="modulepreload" crossorigin href="/pathy/assets/sha256-DJ1hUrZF.js">
+  <link rel="stylesheet" crossorigin href="/pathy/assets/pwa-C5X8wxHp.css">
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>Transmit</h1>
+    <p class="ident">
+      <span><b>Mode</b> TX</span>
+      <span><b>Src</b> local file</span>
+      <span><a href="./">Index</a></span>
+    </p>
+  </header>
+
+  <section class="panel" id="setup">
+    <div class="row">
+      <input type="file" id="file">
+    </div>
+    <div class="row">
+      <button id="start" disabled>Start</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <details>
+      <summary>Parameters</summary>
+      <div class="grid">
+        <div class="field">
+          <label for="profile">Density</label>
+          <select id="profile"></select>
+        </div>
+        <div class="field">
+          <label for="fps">Frame rate</label>
+          <input type="number" id="fps" value="30" min="1" max="120">
+        </div>
+        <div class="field">
+          <label for="window">Window / MB</label>
+          <input type="number" id="window" value="2" min="1" max="64">
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel" id="live" hidden>
+    <div class="stats">
+      <div class="stat stat--wide"><span class="k">Payload</span><output class="v" id="s-name">&mdash;</output></div>
+      <div class="stat"><span class="k">TX rate</span><output class="v" id="s-rate">&mdash;</output></div>
+      <div class="stat"><span class="k">Frames</span><output class="v" id="s-fps">&mdash;</output></div>
+      <div class="stat"><span class="k">Window</span><output class="v" id="s-window">&mdash;</output></div>
+      <div class="stat"><span class="k">Pass</span><output class="v" id="s-pass">&mdash;</output></div>
+    </div>
+    <div class="row">
+      <button id="stop" class="secondary">Stop</button>
+      <button id="full" class="secondary">Fullscreen</button>
+    </div>
+  </section>
+
+  <div id="stage" hidden><canvas id="code"></canvas></div>
+</main>
+</body>
+</html>

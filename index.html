@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Optical file transport. Screen to camera, one way, no network path between the devices.">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Photon">
+<!-- black-translucent puts the page under the status bar, which is what
+     viewport-fit=cover plus the safe-area padding in the stylesheet expects. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="Photon &mdash; optical file transport">
+<meta property="og:description" content="Optical file transport. Screen to camera, one way, no network path between the devices.">
+<meta property="og:type" content="website">
+<title>Photon &mdash; optical file transport</title>
+  <script type="module" crossorigin src="/pathy/assets/index-CpwtJUjp.js"></script>
+  <link rel="modulepreload" crossorigin href="/pathy/assets/pwa-ufipXdMk.js">
+  <link rel="stylesheet" crossorigin href="/pathy/assets/pwa-C5X8wxHp.css">
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>Photon</h1>
+    <p class="ident">
+      <span>Optical file transport</span>
+      <span><b>Rev</b> 1.0</span>
+      <span><b>Net</b> none</span>
+    </p>
+  </header>
+
+  <nav class="cards">
+    <a class="card" href="send.html">
+      <b>Transmit</b>
+      <span class="card-go" aria-hidden="true">&gt;&gt;&gt;</span>
+    </a>
+    <a class="card" href="receive.html">
+      <b>Receive</b>
+      <span class="card-go" aria-hidden="true">&gt;&gt;&gt;</span>
+    </a>
+  </nav>
+
+  <section class="panel">
+    <dl class="spec">
+      <div><dt>Link</dt><dd>Screen &rarr; camera, simplex. No back channel, no pairing.</dd></div>
+      <div><dt>Cell</dt><dd><b>3 bit</b> &middot; 8 colours, one bit per channel</dd></div>
+      <div><dt>Frame</dt><dd><b>7.6 KB</b> payload at 160&sup2; cells, four corner markers</dd></div>
+      <div><dt>Coding</dt><dd>RS(255,223) inner &middot; LT fountain outer, windowed</dd></div>
+      <div><dt>Rate</dt><dd><b>457 KB/s</b> handheld at 60 fps &middot; 889 KB/s propped</dd></div>
+      <div><dt>Memory</dt><dd>Bounded by window size, not file size</dd></div>
+      <div><dt>Verify</dt><dd>SHA-256 over the reassembled file</dd></div>
+    </dl>
+  </section>
+</main>
+</body>
+</html>
